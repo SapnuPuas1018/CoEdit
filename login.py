@@ -34,7 +34,14 @@ class AuthApp(ctk.CTk):
         self.signup_button.pack(pady=5)
 
     def create_signup_frame(self):
+        """Create the sign-up frame with first name, last name, username, and password fields."""
         self.signup_frame = ctk.CTkFrame(self.container)
+
+        self.first_name_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="First Name", width=250)
+        self.first_name_entry.pack(pady=5)
+
+        self.last_name_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Last Name", width=250)
+        self.last_name_entry.pack(pady=5)
 
         self.new_username_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="Choose Username", width=250)
         self.new_username_entry.pack(pady=5)
@@ -63,16 +70,20 @@ class AuthApp(ctk.CTk):
         else:
             messagebox.showerror("Login Failed", "Invalid username or password")
 
-    def register(self):
+    def register_new_user(self):
+        first_name = self.first_name_entry.get()
+        last_name = self.last_name_entry.get()
         username = self.new_username_entry.get()
         password = self.new_password_entry.get()
         confirm_password = self.confirm_password_entry.get()
 
         if password != confirm_password:
-            messagebox.showerror("Error", "Passwords do not match!")
+            messagebox.showerror("Error", "Passwords do not match")
             return
 
-        messagebox.showinfo("Success", "Account created successfully!")
+
+
+        messagebox.showinfo("Success", "Account created successfully")
         self.show_login()
 
     def show_login(self):

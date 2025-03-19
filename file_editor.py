@@ -9,7 +9,7 @@ class NotepadApp(ctk.CTk):
         self.title("CoEdit")
         self.geometry("800x600")
 
-        # Search Frame
+        # Search
         self.search_frame = ctk.CTkFrame(self)
         self.search_frame.pack(pady=5)
 

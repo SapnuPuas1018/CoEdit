@@ -5,6 +5,7 @@ date   - 12/12/23
 
 import socket
 
+
 def send(connected_socket, msg):
     """
     Sends a message to the connected socket. The message is formatted to include its length

@@ -1,25 +1,5 @@
-# import sqlite3
-# from user import User
-# conn = sqlite3.connect('users.db')
-# c = conn.cursor()
-#
-#
-# user1 = User('Messi', '123', '')
-#
-#
-#
-# def add_user(user):
-#     c.execute(f'INSERT INTO users VALUES ({user.name}, {user.password})')
-#     conn.commit()
-#
-# c.execute("""CREATE TABLE users (
-#             name text
-#             password text
-#     )""")
-#
-# conn.commit()
-# conn.close()
 import sqlite3
+
 
 class UserDatabase:
     def __init__(self, db_name="users.db"):
@@ -34,7 +14,9 @@ class UserDatabase:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL
             )
         """)
@@ -44,6 +26,8 @@ class UserDatabase:
             CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
+                edit_permission ARRAY,
+                view_permission ARRAY,
                 filename TEXT,
                 content TEXT,
                 FOREIGN KEY(user_id) REFERENCES users(id)
@@ -51,18 +35,18 @@ class UserDatabase:
         """)
         self.conn.commit()
 
-    def add_user(self, name, password):
+    def add_user(self, first_name, last_name,username, password):
         """Add a new user to the database."""
         try:
-            self.cursor.execute("INSERT INTO users (name, password) VALUES (?, ?)", (name, password))
+            self.cursor.execute("INSERT INTO users (first_name, last_name, username, password) VALUES (?, ?, ?, ?)", (first_name, last_name,username, password))
             self.conn.commit()
             return "User added successfully."
         except sqlite3.IntegrityError:
             return "Username already exists."
 
-    def verify_user(self, name, password):
+    def verify_user(self, username, password):
         """Verify user login credentials."""
-        self.cursor.execute("SELECT id FROM users WHERE name=? AND password=?", (name, password))
+        self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
         return self.cursor.fetchone()
 
     def add_file(self, user_name, filename, content):
@@ -102,11 +86,17 @@ class UserDatabase:
             return f"File '{filename}' removed."
         return "User not found."
 
-    def get_user_id(self, name):
+    def get_user_id(self, username):
         """Retrieve user ID from username."""
-        self.cursor.execute("SELECT id FROM users WHERE name=?", (name,))
+        self.cursor.execute("SELECT id FROM users WHERE username=?", (username,))
         result = self.cursor.fetchone()
         return result[0] if result else None
+
+    def get_user_full_name(self, username):
+        """Retrieve the full name of a user by concatenating first and last names."""
+        self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
+        result = self.cursor.fetchone()
+        return f"{result[0]} {result[1]}" if result else None
 
     def close(self):
         """Close the database connection."""
@@ -115,10 +105,11 @@ class UserDatabase:
 
 # Example usage:
 db = UserDatabase()
-print(db.add_user("JohnDoe", "securepassword123"))
-print(db.add_file("JohnDoe", "notes.txt", "This is a sample note."))
-print(db.get_files("JohnDoe"))
-print(db.get_file_content("JohnDoe", "notes.txt"))
-print(db.remove_file("JohnDoe", "notes.txt"))
-print(db.get_files("JohnDoe"))
+print(db.add_user('John','Doe',"jd123", "securepassword123"))
+print(db.get_user_full_name('jd123'))
+print(db.add_file("jd123", "notes.txt", "This is a sample note."))
+print(db.get_files("jd123"))
+print(db.get_file_content("jd123", "notes.txt"))
+print(db.remove_file("jd123", "notes.txt"))
+print(db.get_files("jd123"))
 db.close()

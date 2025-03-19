@@ -1,7 +1,9 @@
 import socket
 import ssl
-import protocol
+import threading
 
+import protocol
+from threading import Thread
 IP_ADDR = '0.0.0.0'
 PORT = 8443
 QUEUE_LEN = 1
@@ -10,6 +12,8 @@ KEY_FILE = 'privateKey.key'
 MSG = 'have a nice day'
 EXIT_CMD = 'exit'
 EXIT_RES = 'by by'
+
+
 class Server:
     def __init__(self):
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -22,24 +26,39 @@ class Server:
             self.server_socket.bind((IP_ADDR, PORT))
             self.server_socket.listen(QUEUE_LEN)
             s_sock = self.context.wrap_socket(self.server_socket, server_side=True)
-            conn, addr = s_sock.accept()
-            try:
-                msg = protocol.recv(conn)
-                if msg != '':
-                    while msg != EXIT_CMD:
-                        print('received ' + msg)
-                        protocol.send(conn, MSG)
-                        msg = protocol.recv(conn)
-                    protocol.send(conn, EXIT_RES)
-                    print('exiting')
-            except socket.error as sock_err:
-                print(sock_err)
-            finally:
-                conn.close()
+            while True:
+                client_socket, addr = s_sock.accept()
+                print('received a connection')
+                try:
+                    thread = Thread(target=handle_connection, args=(client_socket, addr))
+                    thread.start()
+                    self.thread_list.append(thread)
+                except socket.error as sock_err:
+                    print(sock_err)
+                finally:
+                    client_socket.close()
         except socket.error as sock_err:
             print(sock_err)
         finally:
             self.server_socket.close()
+
+
+
+
+def handle_connection(client_socket, addr):
+    pass
+
+
+def check_user_in_database():
+    pass
+
+
+def send_file_names():
+    pass
+
+
+def send_file_context():
+    pass
 
 
 if __name__ == '__main__':
