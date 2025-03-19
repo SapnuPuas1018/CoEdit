@@ -1,12 +1,14 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
-
+import protocol
+from user import User
 
 class AuthApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Authentication")
+        self.signup_result = None
+        self.title("CoEdit - login")
         self.geometry("400x300")
 
         self.container = ctk.CTkFrame(self)
@@ -34,7 +36,6 @@ class AuthApp(ctk.CTk):
         self.signup_button.pack(pady=5)
 
     def create_signup_frame(self):
-        """Create the sign-up frame with first name, last name, username, and password fields."""
         self.signup_frame = ctk.CTkFrame(self.container)
 
         self.first_name_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="First Name", width=250)
@@ -54,7 +55,7 @@ class AuthApp(ctk.CTk):
                                                    width=250)
         self.confirm_password_entry.pack(pady=5)
 
-        self.signup_button = ctk.CTkButton(self.signup_frame, text="Sign Up", command=self.register)
+        self.signup_button = ctk.CTkButton(self.signup_frame, text="Sign Up", command=self.register_new_user)
         self.signup_button.pack(pady=5)
 
         self.back_button = ctk.CTkButton(self.signup_frame, text="Already have an account? Login", fg_color="gray",
@@ -65,10 +66,10 @@ class AuthApp(ctk.CTk):
         username = self.username_entry.get()
         password = self.password_entry.get()
 
-        if username == "admin" and password == "password":
-            messagebox.showinfo("Login Successful", "Welcome!")
-        else:
-            messagebox.showerror("Login Failed", "Invalid username or password")
+
+        if not all([username, password]):
+            messagebox.showerror("Error", "All fields must be filled out")
+            return
 
     def register_new_user(self):
         first_name = self.first_name_entry.get()
@@ -77,14 +78,21 @@ class AuthApp(ctk.CTk):
         password = self.new_password_entry.get()
         confirm_password = self.confirm_password_entry.get()
 
+        if not all([first_name, last_name, username, password, confirm_password]):
+            messagebox.showerror("Error", "All fields must be filled out")
+            return
+
         if password != confirm_password:
             messagebox.showerror("Error", "Passwords do not match")
             return
 
-
-
-        messagebox.showinfo("Success", "Account created successfully")
+        # messagebox.showinfo("Success", "Account created successfully")
         self.show_login()
+
+        new_user = User(first_name, last_name, username, password)
+        print(new_user)
+        self.signup_result = new_user  # store user object in signup result
+        return new_user
 
     def show_login(self):
         self.signup_frame.pack_forget()
@@ -94,6 +102,9 @@ class AuthApp(ctk.CTk):
         self.login_frame.pack_forget()
         self.signup_frame.pack()
 
+    def mainloop(self):
+        super().mainloop()
+        return self.signup_result
 
 if __name__ == "__main__":
     AuthApp().mainloop()

@@ -2,7 +2,8 @@ import socket
 import ssl
 import protocol
 from login import AuthApp
-
+from user import User
+import pickle
 HOST_NAME = '127.0.0.1'
 PORT = 8443
 
@@ -24,7 +25,13 @@ class Client:
         self.conn = self.context.wrap_socket(self.my_socket, server_hostname=HOST_NAME)
         try:
             self.conn.connect((HOST_NAME, PORT))
-            AuthApp().mainloop()
+            print('hi-------------------------------------------------')
+            signup_result = AuthApp().mainloop()
+            print('hi-------------------------------------------------')
+            protocol.send(self.my_socket, 'REGISTER', signup_result)
+            print('hi-------------------------------------------------')
+            print('sending: ')
+            print(signup_result)
 
         except socket.error as sock_err:
             print(sock_err)

@@ -4,9 +4,10 @@ date   - 12/12/23
 """
 
 import socket
+from user import User
+import pickle
 
-
-def send(connected_socket, msg):
+def send(connected_socket, command, data):
     """
     Sends a message to the connected socket. The message is formatted to include its length
     as a prefix followed by an exclamation mark (`!`), and spaces in the message are normalized.
@@ -18,11 +19,24 @@ def send(connected_socket, msg):
     :return: None
     :rtype: None
     """
-    msg = msg.strip()
-    msg = str(len(msg)) + '!' + ' '.join(msg.split())
 
-    # Encode the modified 'msg' string and send it through the 'connected_socket'
-    connected_socket.send(msg.encode())
+    if command == 'REGISTER':
+        serialized_user = pickle.dumps(data)
+
+        data_to_send = str(len(serialized_user)) + '!'
+        data_to_send.encode()
+        print(type(data_to_send))
+
+        combined = data_to_send + serialized_user
+        connected_socket.send(combined)
+        print(f'sent: {combined}')
+
+    else:
+        msg = data.strip()
+        msg = str(len(msg)) + '!' + ' '.join(msg.split())
+
+        # Encode the modified 'msg' string and send it through the 'connected_socket'
+        connected_socket.send(msg.encode())
 
 
 def recv(connected_socket):
