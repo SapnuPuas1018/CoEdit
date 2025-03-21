@@ -5,24 +5,11 @@ date   - 12/12/23
 
 import socket
 import ssl
-import struct
 import pickle
 from user import User
 
 
 def send(sock, command, data):
-    """
-    Sends a message to the connected socket. The message is formatted to include its length
-    as a prefix followed by an exclamation mark (`!`), and spaces in the message are normalized.
-
-    :param sock: The socket through which the message is sent
-    :type sock: socket.socket
-    :param msg: The message to send
-    :type msg: str
-    :return: None
-    :rtype: None
-    """
-
     if command == 'REGISTER':
         serialized_data = pickle.dumps(data)
         length = len(serialized_data)
@@ -37,17 +24,6 @@ def send(sock, command, data):
 
 
 def recv(sock, command):
-    """
-    Receives a message from the connected socket. It first reads the length prefix, then receives
-    the actual message until the expected length is met.
-
-    :param sock: The socket from which the message is received
-    :type sock: socket.socket
-    :return: The received message
-    :rtype: str
-    """
-
-
     length = ''
     while '!' not in length:
         length += sock.recv(1).decode()  # Read until '!' is found
@@ -83,11 +59,8 @@ if __name__ == '__main__':
     conn = context.wrap_socket(my_socket, server_hostname=HOST_NAME)
     try:
         conn.connect((HOST_NAME, PORT))
-        signup_result = User('Yuval', 'Hayun', 'Sapnu Puas', 'very_secured_password1234')
+        signup_result = User('Paty', 'Amiga', 'PT', 'idk')
         send(conn, 'REGISTER', signup_result)
-
-
 
     except socket.error as sock_err:
         print(sock_err)
-

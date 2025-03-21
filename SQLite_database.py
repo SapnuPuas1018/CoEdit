@@ -1,6 +1,6 @@
 import sqlite3
 import threading
-
+from user import User
 
 class UserDatabase:
     def __init__(self, db_name="users.db"):
@@ -33,13 +33,13 @@ class UserDatabase:
             """)
             self.conn.commit()
 
-    def add_user(self, first_name, last_name, username, password):
+    def add_user(self, user):
         """Add a new user to the database."""
         with self.lock:
             try:
                 self.cursor.execute(
                     "INSERT INTO users (first_name, last_name, username, password) VALUES (?, ?, ?, ?)",
-                    (first_name, last_name, username, password),
+                    (user.first_name, user.last_name, user.username, user.password),
                 )
                 self.conn.commit()
                 return True, "User added successfully."
@@ -52,11 +52,11 @@ class UserDatabase:
             self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
             return self.cursor.fetchone() is not None
 
-    def user_exists(self, username):
-        """Check if a user exists in the database."""
-        with self.lock:
-            self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
-            return self.cursor.fetchone() is not None
+    # def user_exists(self, username):
+    #     """Check if a user exists in the database."""
+    #     with self.lock:
+    #         self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
+    #         return self.cursor.fetchone() is not None
 
     def add_file(self, username, filename, content):
         """Add a file for a user."""

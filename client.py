@@ -3,7 +3,6 @@ import ssl
 import protocol
 from login import AuthApp
 from user import User
-import pickle
 HOST_NAME = '127.0.0.1'
 PORT = 8443
 

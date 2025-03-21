@@ -1,6 +1,5 @@
 import socket
 import ssl
-import threading
 from SQLite_database import UserDatabase
 import protocol
 
@@ -56,17 +55,17 @@ class Server:
 
 
 def handle_connection(self, client_socket, addr):
-    signup_result = protocol.recv(client_socket, 'REGISTER')
-    print(f"Received from {addr}: {signup_result}")
-    if self.database.user_exists('hi123'):
-        pass
-        # self.database.add_user()
+    try:
+        signup_result = protocol.recv(client_socket, 'REGISTER')
+        print(f"Received from {addr}: {signup_result}")
+        already_exists, message = self.database.add_user(signup_result)
+        print(message)
 
+    except socket.error as sock_err:
+        print(f"Socket error at handle_connection: {sock_err}")
 
-    client_socket.close()  # Make sure to close the connection
-
-def check_user_in_database():
-    pass
+    finally:
+        client_socket.close()  # Make sure to close the connection
 
 
 def send_file_names():
