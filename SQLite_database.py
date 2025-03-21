@@ -102,14 +102,14 @@ class UserDatabase:
         """Close the database connection."""
         self.conn.close()
 
-
-# Example usage:
-db = UserDatabase()
-print(db.add_user('John','Doe',"jd123", "securepassword123"))
-print(db.get_user_full_name('jd123'))
-print(db.add_file("jd123", "notes.txt", "This is a sample note."))
-print(db.get_files("jd123"))
-print(db.get_file_content("jd123", "notes.txt"))
-print(db.remove_file("jd123", "notes.txt"))
-print(db.get_files("jd123"))
-db.close()
+if __name__ == '__main__':
+    # Example usage:
+    db = UserDatabase()
+    print(db.add_user('John','Doe',"jd123", "securepassword123"))
+    print(db.get_user_full_name('jd123'))
+    print(db.add_file("jd123", "notes.txt", "This is a sample note."))
+    print(db.get_files("jd123"))
+    print(db.get_file_content("jd123", "notes.txt"))
+    print(db.remove_file("jd123", "notes.txt"))
+    print(db.get_files("jd123"))
+    db.close()

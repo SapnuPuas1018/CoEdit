@@ -27,11 +27,13 @@ class Client:
             self.conn.connect((HOST_NAME, PORT))
             print('hi-------------------------------------------------')
             signup_result = AuthApp().mainloop()
-            print('hi-------------------------------------------------')
-            protocol.send(self.my_socket, 'REGISTER', signup_result)
+
+            protocol.send(self.conn, 'REGISTER', signup_result)
             print('hi-------------------------------------------------')
             print('sending: ')
             print(signup_result)
+
+
 
         except socket.error as sock_err:
             print(sock_err)

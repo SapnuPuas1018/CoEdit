@@ -19,26 +19,31 @@ class Server:
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(CERT_FILE, KEY_FILE)
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind((IP_ADDR, PORT))
+        self.server_socket.listen(QUEUE_LEN)
         self.thread_list = []  # List of threads handling clients
 
     def start_server(self):
         try:
-            self.server_socket.bind((IP_ADDR, PORT))
-            self.server_socket.listen(QUEUE_LEN)
-            s_sock = self.context.wrap_socket(self.server_socket, server_side=True)
+            print(f"Server listening on {IP_ADDR}:{PORT}")
             while True:
-                client_socket, addr = s_sock.accept()
-                print('received a connection')
+                client_socket, addr = self.server_socket.accept()  # Accept first
+                print('Received a connection')
+
+                # Wrap the accepted client socket with SSL
+                ssl_client_socket = self.context.wrap_socket(client_socket, server_side=True)
+
                 try:
-                    thread = Thread(target=handle_connection, args=(client_socket, addr))
+                    thread = Thread(target=handle_connection, args=(ssl_client_socket, addr))
                     thread.start()
                     self.thread_list.append(thread)
                 except socket.error as sock_err:
-                    print(sock_err)
-                finally:
-                    client_socket.close()
+                    print(f"Error in thread: {sock_err}")
+                # No need to close client_socket here, as it's passed to a thread
+
         except socket.error as sock_err:
-            print(sock_err)
+            print(f"Server error: {sock_err}")
+
         finally:
             self.server_socket.close()
 
@@ -46,8 +51,13 @@ class Server:
 
 
 def handle_connection(client_socket, addr):
-    pass
-
+    try:
+        signup_result = protocol.recv(client_socket)
+        print(f"Received from {addr}: {signup_result}")
+    except Exception as e:
+        print(f"Error handling client {addr}: {e}")
+    finally:
+        client_socket.close()  # Make sure to close the connection
 
 def check_user_in_database():
     pass

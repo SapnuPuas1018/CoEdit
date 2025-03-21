@@ -4,8 +4,12 @@ date   - 12/12/23
 """
 
 import socket
+import ssl
+
 from user import User
 import pickle
+
+
 
 def send(connected_socket, command, data):
     """
@@ -22,14 +26,10 @@ def send(connected_socket, command, data):
 
     if command == 'REGISTER':
         serialized_user = pickle.dumps(data)
+        data_to_send = str(len(serialized_user)) + '!' + str(serialized_user)
 
-        data_to_send = str(len(serialized_user)) + '!'
-        data_to_send.encode()
-        print(type(data_to_send))
-
-        combined = data_to_send + serialized_user
-        connected_socket.send(combined)
-        print(f'sent: {combined}')
+        connected_socket.send(data_to_send.encode())
+        print(f'sent: {data_to_send}')
 
     else:
         msg = data.strip()
@@ -62,3 +62,23 @@ def recv(connected_socket):
         received_msg += connected_socket.recv(length - len(received_msg)).decode()
 
     return received_msg
+
+if __name__ == '__main__':
+    HOST_NAME = '127.0.0.1'
+    PORT = 8443
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+
+    my_socket = socket.socket()
+    conn = context.wrap_socket(my_socket, server_hostname=HOST_NAME)
+    try:
+        conn.connect((HOST_NAME, PORT))
+        signup_result = User('Yuval', 'Hayun', 'Sapnu Puas', 'very_secured_password1234')
+        send(conn, 'REGISTER', signup_result)
+
+
+
+    except socket.error as sock_err:
+        print(sock_err)
+

@@ -1,3 +1,5 @@
+from idlelib.debugobj import myrepr
+
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
@@ -86,13 +88,17 @@ class AuthApp(ctk.CTk):
             messagebox.showerror("Error", "Passwords do not match")
             return
 
+
+
+
+        signup_result = User(first_name, last_name, username, password)
+        print(signup_result)
+
+
+
         # messagebox.showinfo("Success", "Account created successfully")
         self.show_login()
 
-        new_user = User(first_name, last_name, username, password)
-        print(new_user)
-        self.signup_result = new_user  # store user object in signup result
-        return new_user
 
     def show_login(self):
         self.signup_frame.pack_forget()

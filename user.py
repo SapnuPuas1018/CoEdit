@@ -38,12 +38,13 @@ class User:
     def __str__(self):
         return f'first name : {self.first_name}, last name : {self.last_name} , username : {self.username}, password : {self.password}, files names : {self.list_files()}'
 
+if __name__ == '__main__':
 # Example usage:
-user1 = User('John','Doe',"jd123", "securepassword123")
-print(user1.add_file("notes.txt", "This is a sample text file."))
-print(user1.add_file("todo.txt", "Buy milk\nComplete project."))
-print(user1.list_files())
-print(user1.get_file("notes.txt"))
-print(user1.remove_file("todo.txt"))
-print(user1.list_files())
-print(user1)
+    user1 = User('John','Doe',"jd123", "securepassword123")
+    print(user1.add_file("notes.txt", "This is a sample text file."))
+    print(user1.add_file("todo.txt", "Buy milk\nComplete project."))
+    print(user1.list_files())
+    print(user1.get_file("notes.txt"))
+    print(user1.remove_file("todo.txt"))
+    print(user1.list_files())
+    print(user1)
