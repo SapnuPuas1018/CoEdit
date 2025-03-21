@@ -1,8 +1,9 @@
 import socket
 import ssl
 import threading
-
+from SQLite_database import UserDatabase
 import protocol
+
 from threading import Thread
 IP_ADDR = '0.0.0.0'
 PORT = 8443
@@ -22,6 +23,9 @@ class Server:
         self.server_socket.bind((IP_ADDR, PORT))
         self.server_socket.listen(QUEUE_LEN)
         self.thread_list = []  # List of threads handling clients
+        self.database = UserDatabase()
+
+
 
     def start_server(self):
         try:
@@ -34,7 +38,7 @@ class Server:
                 ssl_client_socket = self.context.wrap_socket(client_socket, server_side=True)
 
                 try:
-                    thread = Thread(target=handle_connection, args=(ssl_client_socket, addr))
+                    thread = Thread(target=handle_connection, args=(self, ssl_client_socket, addr))
                     thread.start()
                     self.thread_list.append(thread)
                 except socket.error as sock_err:
@@ -45,15 +49,20 @@ class Server:
             print(f"Server error: {sock_err}")
 
         finally:
+            self.database.close()
             self.server_socket.close()
 
 
 
 
-def handle_connection(client_socket, addr):
+def handle_connection(self, client_socket, addr):
     try:
-        signup_result = protocol.recv(client_socket)
+        signup_result = protocol.recv(client_socket, 'REGISTER')
         print(f"Received from {addr}: {signup_result}")
+        if self.database.user_exists('hi123'):
+            pass
+            # self.database.add_user()
+
     except Exception as e:
         print(f"Error handling client {addr}: {e}")
     finally:

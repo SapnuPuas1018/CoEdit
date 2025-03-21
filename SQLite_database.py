@@ -1,115 +1,142 @@
 import sqlite3
+import threading
 
 
 class UserDatabase:
     def __init__(self, db_name="users.db"):
-        """Initialize SQLite database connection and create tables if they don't exist."""
-        self.conn = sqlite3.connect(db_name)
+        """Initialize SQLite database connection with multi-threading support."""
+        self.conn = sqlite3.connect(db_name, check_same_thread=False)  # Allows access across threads
         self.cursor = self.conn.cursor()
+        self.lock = threading.Lock()  # Thread-safe database access
         self.create_tables()
 
     def create_tables(self):
         """Create tables for users and their files."""
-        # create user table
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                first_name TEXT NOT NULL,
-                last_name TEXT NOT NULL,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
-            )
-        """)
-
-        # create file table
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS files (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                edit_permission ARRAY,
-                view_permission ARRAY,
-                filename TEXT,
-                content TEXT,
-                FOREIGN KEY(user_id) REFERENCES users(id)
-            )
-        """)
-        self.conn.commit()
-
-    def add_user(self, first_name, last_name,username, password):
-        """Add a new user to the database."""
-        try:
-            self.cursor.execute("INSERT INTO users (first_name, last_name, username, password) VALUES (?, ?, ?, ?)", (first_name, last_name,username, password))
+        with self.lock:
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    first_name TEXT NOT NULL,
+                    last_name TEXT NOT NULL,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL
+                )
+            """)
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS files (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    filename TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
             self.conn.commit()
-            return "User added successfully."
-        except sqlite3.IntegrityError:
-            return "Username already exists."
+
+    def add_user(self, first_name, last_name, username, password):
+        """Add a new user to the database."""
+        with self.lock:
+            try:
+                self.cursor.execute(
+                    "INSERT INTO users (first_name, last_name, username, password) VALUES (?, ?, ?, ?)",
+                    (first_name, last_name, username, password),
+                )
+                self.conn.commit()
+                return True, "User added successfully."
+            except sqlite3.IntegrityError:
+                return False, "Username already exists."
 
     def verify_user(self, username, password):
         """Verify user login credentials."""
-        self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
-        return self.cursor.fetchone()
+        with self.lock:
+            self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
+            return self.cursor.fetchone() is not None
 
-    def add_file(self, user_name, filename, content):
-        """Add a text file for a user."""
-        user_id = self.get_user_id(user_name)
+    def user_exists(self, username):
+        """Check if a user exists in the database."""
+        with self.lock:
+            self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
+            return self.cursor.fetchone() is not None
+
+    def add_file(self, username, filename, content):
+        """Add a file for a user."""
+        user_id = self.get_user_id(username)
         if user_id:
-            self.cursor.execute("INSERT INTO files (user_id, filename, content) VALUES (?, ?, ?)",
-                                (user_id, filename, content))
-            self.conn.commit()
-            return f"File '{filename}' added."
-        return "User not found."
+            with self.lock:
+                self.cursor.execute(
+                    "INSERT INTO files (user_id, filename, content) VALUES (?, ?, ?)",
+                    (user_id, filename, content),
+                )
+                self.conn.commit()
+                return True, f"File '{filename}' added successfully."
+        return False, "User not found."
 
-    def get_files(self, user_name):
+    def get_files(self, username):
         """Retrieve all files of a user."""
-        user_id = self.get_user_id(user_name)
+        user_id = self.get_user_id(username)
         if user_id:
-            self.cursor.execute("SELECT filename FROM files WHERE user_id=?", (user_id,))
-            return [row[0] for row in self.cursor.fetchall()]
-        return "User not found."
+            with self.lock:
+                self.cursor.execute("SELECT filename FROM files WHERE user_id=?", (user_id,))
+                return [row[0] for row in self.cursor.fetchall()]
+        return []
 
-    def get_file_content(self, user_name, filename):
-        """Retrieve a specific file's content."""
-        user_id = self.get_user_id(user_name)
+    def get_file_content(self, username, filename):
+        """Retrieve the content of a specific file."""
+        user_id = self.get_user_id(username)
         if user_id:
-            self.cursor.execute("SELECT content FROM files WHERE user_id=? AND filename=?",
-                                (user_id, filename))
-            result = self.cursor.fetchone()
-            return result[0] if result else "File not found."
-        return "User not found."
+            with self.lock:
+                self.cursor.execute(
+                    "SELECT content FROM files WHERE user_id=? AND filename=?", (user_id, filename)
+                )
+                result = self.cursor.fetchone()
+                return result[0] if result else None
+        return None
 
-    def remove_file(self, user_name, filename):
+    def remove_file(self, username, filename):
         """Delete a file from the database."""
-        user_id = self.get_user_id(user_name)
+        user_id = self.get_user_id(username)
         if user_id:
-            self.cursor.execute("DELETE FROM files WHERE user_id=? AND filename=?", (user_id, filename))
-            self.conn.commit()
-            return f"File '{filename}' removed."
-        return "User not found."
+            with self.lock:
+                self.cursor.execute("DELETE FROM files WHERE user_id=? AND filename=?", (user_id, filename))
+                self.conn.commit()
+                return True, f"File '{filename}' removed successfully."
+        return False, "User not found."
 
     def get_user_id(self, username):
         """Retrieve user ID from username."""
-        self.cursor.execute("SELECT id FROM users WHERE username=?", (username,))
-        result = self.cursor.fetchone()
-        return result[0] if result else None
+        with self.lock:
+            self.cursor.execute("SELECT id FROM users WHERE username=?", (username,))
+            result = self.cursor.fetchone()
+            return result[0] if result else None
 
     def get_user_full_name(self, username):
-        """Retrieve the full name of a user by concatenating first and last names."""
-        self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
-        result = self.cursor.fetchone()
-        return f"{result[0]} {result[1]}" if result else None
+        """Retrieve the full name of a user."""
+        with self.lock:
+            self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
+            result = self.cursor.fetchone()
+            return f"{result[0]} {result[1]}" if result else None
 
     def close(self):
         """Close the database connection."""
-        self.conn.close()
+        with self.lock:
+            self.conn.close()
 
-if __name__ == '__main__':
-    # Example usage:
+
+# Example Usage
+if __name__ == "__main__":
     db = UserDatabase()
-    print(db.add_user('John','Doe',"jd123", "securepassword123"))
-    print(db.get_user_full_name('jd123'))
+
+    print(db.add_user("John", "Doe", "jd123", "securepassword123"))
+    print(db.get_user_full_name("jd123"))
+
     print(db.add_file("jd123", "notes.txt", "This is a sample note."))
     print(db.get_files("jd123"))
+
     print(db.get_file_content("jd123", "notes.txt"))
     print(db.remove_file("jd123", "notes.txt"))
+
     print(db.get_files("jd123"))
+    print(db.user_exists("jd123"))
+    print(db.user_exists("unknown_user"))
+
     db.close()

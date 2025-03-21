@@ -39,7 +39,7 @@ def send(connected_socket, command, data):
         connected_socket.send(msg.encode())
 
 
-def recv(connected_socket):
+def recv(connected_socket, command):
     """
     Receives a message from the connected socket. It first reads the length prefix, then receives
     the actual message until the expected length is met.
