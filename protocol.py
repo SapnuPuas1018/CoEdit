@@ -5,19 +5,18 @@ date   - 12/12/23
 
 import socket
 import ssl
-
-from user import User
+import struct
 import pickle
+from user import User
 
 
-
-def send(connected_socket, command, data):
+def send(sock, command, data):
     """
     Sends a message to the connected socket. The message is formatted to include its length
     as a prefix followed by an exclamation mark (`!`), and spaces in the message are normalized.
 
-    :param connected_socket: The socket through which the message is sent
-    :type connected_socket: socket.socket
+    :param sock: The socket through which the message is sent
+    :type sock: socket.socket
     :param msg: The message to send
     :type msg: str
     :return: None
@@ -25,43 +24,53 @@ def send(connected_socket, command, data):
     """
 
     if command == 'REGISTER':
-        serialized_user = pickle.dumps(data)
-        data_to_send = str(len(serialized_user)) + '!' + str(serialized_user)
-
-        connected_socket.send(data_to_send.encode())
-        print(f'sent: {data_to_send}')
-
+        serialized_data = pickle.dumps(data)
+        length = len(serialized_data)
+        data_to_send = str(length).encode() + '!'.encode() + serialized_data
+        sock.send(data_to_send)
     else:
         msg = data.strip()
         msg = str(len(msg)) + '!' + ' '.join(msg.split())
 
         # Encode the modified 'msg' string and send it through the 'connected_socket'
-        connected_socket.send(msg.encode())
+        sock.send(msg.encode())
 
 
-def recv(connected_socket, command):
+def recv(sock, command):
     """
     Receives a message from the connected socket. It first reads the length prefix, then receives
     the actual message until the expected length is met.
 
-    :param connected_socket: The socket from which the message is received
-    :type connected_socket: socket.socket
+    :param sock: The socket from which the message is received
+    :type sock: socket.socket
     :return: The received message
     :rtype: str
     """
+
+
     length = ''
     while '!' not in length:
-        length += connected_socket.recv(1).decode()  # Read until '!' is found
+        length += sock.recv(1).decode()  # Read until '!' is found
     length = length[:-1]  # Remove '!' from length
-
     length = int(length)  # Convert length to integer
 
-    # Receive the message until the expected length is reached
-    received_msg = ''
-    while len(received_msg) < length:
-        received_msg += connected_socket.recv(length - len(received_msg)).decode()
+    if command == 'REGISTER':
+        # Receive the message until the expected length is reached
+        received_data = b''
+        while len(received_data) < length:
+            received_data += sock.recv(length - len(received_data))
 
-    return received_msg
+        print(f'received_data: {received_data}')
+        received_data = pickle.loads(received_data)
+    else:
+        # Receive the message until the expected length is reached
+        received_data = ''
+        while len(received_data) < length:
+            received_data += sock.recv(length - len(received_data)).decode()
+
+        print(f'received_data: {received_data}')
+    return received_data
+
 
 if __name__ == '__main__':
     HOST_NAME = '127.0.0.1'

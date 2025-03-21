@@ -36,7 +36,7 @@ class User:
         return self.password == password  # In real cases, use hashing!
 
     def __str__(self):
-        return f'first name : {self.first_name}, last name : {self.last_name} , username : {self.username}, password : {self.password}, files names : {self.list_files()}'
+        return f'first name : {self.first_name}, last name : {self.last_name}, username : {self.username}, password : {self.password}, files names : {self.list_files()}'
 
 if __name__ == '__main__':
 # Example usage:

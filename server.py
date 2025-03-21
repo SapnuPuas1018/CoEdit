@@ -56,17 +56,14 @@ class Server:
 
 
 def handle_connection(self, client_socket, addr):
-    try:
-        signup_result = protocol.recv(client_socket, 'REGISTER')
-        print(f"Received from {addr}: {signup_result}")
-        if self.database.user_exists('hi123'):
-            pass
-            # self.database.add_user()
+    signup_result = protocol.recv(client_socket, 'REGISTER')
+    print(f"Received from {addr}: {signup_result}")
+    if self.database.user_exists('hi123'):
+        pass
+        # self.database.add_user()
 
-    except Exception as e:
-        print(f"Error handling client {addr}: {e}")
-    finally:
-        client_socket.close()  # Make sure to close the connection
+
+    client_socket.close()  # Make sure to close the connection
 
 def check_user_in_database():
     pass
