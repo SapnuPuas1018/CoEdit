@@ -39,6 +39,10 @@ class Client:
         finally:
             self.conn.close()
 
+    def add_file(self, file_name):
+        protocol.send(self.conn, '', file_name)
+        # protocol.recv()
+
 
 if __name__ == '__main__':
     # Create a client instance

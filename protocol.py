@@ -62,5 +62,10 @@ if __name__ == '__main__':
         signup_result = User('Paty', 'Amiga', 'PT', 'idk')
         send(conn, 'REGISTER', signup_result)
 
+        file_names = recv(conn, 'REGISTER')
+        print('file_names: ')
+        print(file_names)
+
+
     except socket.error as sock_err:
         print(sock_err)

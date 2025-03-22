@@ -37,7 +37,7 @@ class Server:
                 ssl_client_socket = self.context.wrap_socket(client_socket, server_side=True)
 
                 try:
-                    thread = Thread(target=handle_connection, args=(self, ssl_client_socket, addr))
+                    thread = Thread(target=identification, args=(self, ssl_client_socket, addr))
                     thread.start()
                     self.thread_list.append(thread)
                 except socket.error as sock_err:
@@ -54,12 +54,14 @@ class Server:
 
 
 
-def handle_connection(self, client_socket, addr):
+def identification(self, client_socket, addr):
     try:
         signup_result = protocol.recv(client_socket, 'REGISTER')
         print(f"Received from {addr}: {signup_result}")
         already_exists, message = self.database.add_user(signup_result)
         print(message)
+
+        send_file_names(self, client_socket, signup_result)
 
     except socket.error as sock_err:
         print(f"Socket error at handle_connection: {sock_err}")
@@ -68,11 +70,19 @@ def handle_connection(self, client_socket, addr):
         client_socket.close()  # Make sure to close the connection
 
 
-def send_file_names():
-    pass
+def send_file_names(self, client_socket, user):
+    file_names = self.database.get_files(user)
+    print(file_names)
+    protocol.send(client_socket,'REGISTER', file_names)
 
 
-def send_file_context():
+def add_file(self, client_socket, user):
+    file_name = protocol.recv(client_socket, '')
+    already_exists, message = self.database.add_file(user, file_name, '')
+    print(message)
+
+
+def send_file_context(self, client_socket, user, file_name):
     pass
 
 

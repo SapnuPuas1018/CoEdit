@@ -58,9 +58,9 @@ class UserDatabase:
     #         self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
     #         return self.cursor.fetchone() is not None
 
-    def add_file(self, username, filename, content):
+    def add_file(self, user, filename, content):
         """Add a file for a user."""
-        user_id = self.get_user_id(username)
+        user_id = self.get_user_id(user.username)
         if user_id:
             with self.lock:
                 self.cursor.execute(
@@ -71,18 +71,18 @@ class UserDatabase:
                 return True, f"File '{filename}' added successfully."
         return False, "User not found."
 
-    def get_files(self, username):
+    def get_files(self, user):
         """Retrieve all files of a user."""
-        user_id = self.get_user_id(username)
+        user_id = self.get_user_id(user.username)
         if user_id:
             with self.lock:
                 self.cursor.execute("SELECT filename FROM files WHERE user_id=?", (user_id,))
                 return [row[0] for row in self.cursor.fetchall()]
         return []
 
-    def get_file_content(self, username, filename):
+    def get_file_content(self, user, filename):
         """Retrieve the content of a specific file."""
-        user_id = self.get_user_id(username)
+        user_id = self.get_user_id(user.username)
         if user_id:
             with self.lock:
                 self.cursor.execute(
