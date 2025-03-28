@@ -56,6 +56,7 @@ class Server:
 
 def identification(self, client_socket, addr):
     try:
+        print('iiiiiiiiiiiiiiiiiiiii')
         signup_result = protocol.recv(client_socket, 'REGISTER')
         print(f"Received from {addr}: {signup_result}")
         already_exists, message = self.database.add_user(signup_result)

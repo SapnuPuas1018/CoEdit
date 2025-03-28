@@ -1,39 +1,17 @@
-import customtkinter as ctk
+from importlib.metadata import Lookup
 from tkinter import messagebox
+
+import customtkinter as ctk
+
+
 from user import User
 
-class AuthApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.signup_result = None
-        self.title("CoEdit - login")
-        self.geometry("400x300")
 
-        self.container = ctk.CTkFrame(self)
-        self.container.pack(expand=True)
+class SignUpGui:
 
-        self.create_login_frame()
-        self.create_signup_frame()
-
-        self.show_login()
-
-    def create_login_frame(self):
-        self.login_frame = ctk.CTkFrame(self.container)
-
-        self.username_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Username", width=250)
-        self.username_entry.pack(pady=5)
-
-        self.password_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Password", show="*", width=250)
-        self.password_entry.pack(pady=5)
-
-        self.login_button = ctk.CTkButton(self.login_frame, text="Login", command=self.authenticate)
-        self.login_button.pack(pady=5)
-
-        self.signup_button = ctk.CTkButton(self.login_frame, text="Don't have an account? Sign up", fg_color="gray",
-                                           text_color="white", command=self.show_signup)
-        self.signup_button.pack(pady=5)
-
-    def create_signup_frame(self):
+    def __init__(self, gui_manager):
+        self.client = gui_manager.client
+        self.container = gui_manager.container
         self.signup_frame = ctk.CTkFrame(self.container)
 
         self.first_name_entry = ctk.CTkEntry(self.signup_frame, placeholder_text="First Name", width=250)
@@ -57,17 +35,9 @@ class AuthApp(ctk.CTk):
         self.signup_button.pack(pady=5)
 
         self.back_button = ctk.CTkButton(self.signup_frame, text="Already have an account? Login", fg_color="gray",
-                                         text_color="white", command=self.show_login)
+                                         text_color="white", command=gui_manager.show_login_page)
         self.back_button.pack(pady=5)
 
-    def authenticate(self):
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-
-
-        if not all([username, password]):
-            messagebox.showerror("Error", "All fields must be filled out")
-            return
 
     def register_new_user(self):
         first_name = self.first_name_entry.get()
@@ -87,21 +57,10 @@ class AuthApp(ctk.CTk):
         signup_result = User(first_name, last_name, username, password)
         print(signup_result)
 
-        # messagebox.showinfo("Success", "Account created successfully")
-        self.show_login()
+        self.client.send_signup_user(signup_result)
 
-
-    def show_login(self):
-        self.signup_frame.pack_forget()
-        self.login_frame.pack()
-
-    def show_signup(self):
-        self.login_frame.pack_forget()
+    def show(self):
         self.signup_frame.pack()
 
-    def mainloop(self):
-        super().mainloop()
-        return self.signup_result
-
-if __name__ == "__main__":
-    AuthApp().mainloop()
+    def hide(self):
+        self.signup_frame.pack_forget()

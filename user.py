@@ -35,7 +35,7 @@ class User:
         """Verify if the given password matches the user's password (insecure method, just for demo)."""
         return self.password == password  # In real cases, use hashing!
 
-    def __str__(self):
+    def __repr__(self):
         return f'first name : {self.first_name}, last name : {self.last_name}, username : {self.username}, password : {self.password}, files names : {self.list_files()}'
 
 if __name__ == '__main__':

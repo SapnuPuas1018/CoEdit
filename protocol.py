@@ -9,42 +9,26 @@ import pickle
 from user import User
 
 
-def send(sock, command, data):
-    if command == 'REGISTER':
-        serialized_data = pickle.dumps(data)
-        length = len(serialized_data)
-        data_to_send = str(length).encode() + '!'.encode() + serialized_data
-        sock.send(data_to_send)
-    else:
-        msg = data.strip()
-        msg = str(len(msg)) + '!' + ' '.join(msg.split())
+def send(sock, data):
+    serialized_data = pickle.dumps(data)
+    length = len(serialized_data)
+    data_to_send = str(length).encode() + '!'.encode() + serialized_data
+    sock.send(data_to_send)
 
-        # Encode the modified 'msg' string and send it through the 'connected_socket'
-        sock.send(msg.encode())
-
-
-def recv(sock, command):
+def recv(sock):
     length = ''
     while '!' not in length:
         length += sock.recv(1).decode()  # Read until '!' is found
     length = length[:-1]  # Remove '!' from length
     length = int(length)  # Convert length to integer
 
-    if command == 'REGISTER':
-        # Receive the message until the expected length is reached
-        received_data = b''
-        while len(received_data) < length:
-            received_data += sock.recv(length - len(received_data))
+    # Receive the message until the expected length is reached
+    received_data = b''
+    while len(received_data) < length:
+        received_data += sock.recv(length - len(received_data))
 
-        print(f'received_data: {received_data}')
-        received_data = pickle.loads(received_data)
-    else:
-        # Receive the message until the expected length is reached
-        received_data = ''
-        while len(received_data) < length:
-            received_data += sock.recv(length - len(received_data)).decode()
-
-        print(f'received_data: {received_data}')
+    print(f'received_data: {received_data}')
+    received_data = pickle.loads(received_data)
     return received_data
 
 
