@@ -2,6 +2,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from sign_up_gui import SignUpGui
+from user import User
 
 
 class LoginGui:
@@ -32,6 +33,10 @@ class LoginGui:
         if not all([username, password]):
             messagebox.showerror("Error", "All fields must be filled out")
             return
+
+        login_user = User('', '', username, password)
+        print(login_user)
+        self.client.send_login_user(login_user)
 
 
     def show(self):

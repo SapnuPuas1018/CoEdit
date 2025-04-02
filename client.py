@@ -20,7 +20,6 @@ class Client:
 
     def send_signup_user(self, signup_user: User):
         # Create the SSL context
-
         try:
             self.conn.connect((HOST_NAME, PORT))
             print('hi-------------------------------------------------')
@@ -28,12 +27,31 @@ class Client:
             print('sending: ')
             print(signup_user)
             print(type(signup_user))
-            protocol.send(self.conn, 'REGISTER', signup_user)
+            protocol.send(self.conn, signup_user)
             print('hi-------------------------------------------------')
         except socket.error as sock_err:
             print(sock_err)
         finally:
             self.conn.close()
+
+
+    def send_login_user(self, login_user: User):
+        # Create the SSL context
+
+        try:
+            self.conn.connect((HOST_NAME, PORT))
+            print('hi-------------------------------------------------')
+
+            print('sending: ')
+            print(login_user)
+            print(type(login_user))
+            protocol.send(self.conn, login_user)
+            print('hi-------------------------------------------------')
+        except socket.error as sock_err:
+            print(sock_err)
+        finally:
+            self.conn.close()
+
 
     def add_file(self, file_name):
         protocol.send(self.conn, '', file_name)

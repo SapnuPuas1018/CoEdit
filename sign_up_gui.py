@@ -1,9 +1,7 @@
-from importlib.metadata import Lookup
 from tkinter import messagebox
-
 import customtkinter as ctk
 
-
+from request import Request
 from user import User
 
 
@@ -57,7 +55,7 @@ class SignUpGui:
         signup_result = User(first_name, last_name, username, password)
         print(signup_result)
 
-        self.client.send_signup_user(signup_result)
+        self.client.send_request(Request('signup', signup_result))
 
     def show(self):
         self.signup_frame.pack()

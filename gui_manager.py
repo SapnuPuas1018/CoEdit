@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from login_gui import LoginGui
 from sign_up_gui import SignUpGui
-from client import Client
+from client_new import Client
 
 class AuthApp(ctk.CTk):
     def __init__(self):
