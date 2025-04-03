@@ -18,6 +18,7 @@ class AuthApp(ctk.CTk):
         self.container.pack(expand=True)
 
 
+
         self.client = Client()
         self.login_gui = LoginGui(self)
 

@@ -121,7 +121,6 @@ class UserDatabase:
         with self.lock:
             self.conn.close()
 
-
 # Example Usage
 if __name__ == "__main__":
     db = UserDatabase()

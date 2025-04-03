@@ -25,7 +25,6 @@ class LoginGui:
                                            text_color="white", command=gui_manager.show_signup_page)
         self.signup_button.pack(pady=5)
 
-
     def authenticate(self):
         username = self.username_entry.get()
         password = self.password_entry.get()

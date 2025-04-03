@@ -32,6 +32,7 @@ class Client:
         finally:
             self.conn.close()
 
+
 if __name__ == "__main__":
     client = Client()
     client.send_request(Request('signup', User('yuval','hayun', 'eee', '123')))
