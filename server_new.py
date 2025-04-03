@@ -39,9 +39,10 @@ class Server:
     def listen(self):
         while True:
             conn, addr = self.s_sock.accept()
+            print(f'received a connection from {conn}, {addr}')
             try:
                 msg = protocol.recv(conn)
-                self.handle_msg(msg)
+                self.handle_request(msg)
             except socket.error as sock_err:
                 print(sock_err)
             finally:
@@ -53,8 +54,12 @@ class Server:
             self.handle_signup(request)
             return
 
-    def handle_signup(self, user: User):
-        pass
+    def handle_signup(self,request: Request):
+        user: User = request.data
+        print(type(user))
+        print(user)
+        already_exists, message = self.database.add_user(user)
+        print(message)
 
 
 if __name__ == "__main__":
