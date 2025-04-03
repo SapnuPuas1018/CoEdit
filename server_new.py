@@ -63,14 +63,14 @@ class Server:
         print(type(user))
         print(user)
         already_exists, message = self.database.add_user(user)
-        protocol.send(conn, already_exists)
+        protocol.send(conn, Request('login', already_exists))
         print(message)
 
     def handle_login(self, request: Request, conn):
         user: User = request.data
         success = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
-        protocol.send(conn, success)
+        protocol.send(conn, Request('signup', success))
 
 
 if __name__ == "__main__":

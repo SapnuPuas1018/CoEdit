@@ -25,6 +25,8 @@ class Client:
             if request.request_type == 'login' or request.request_type == 'signup':
                 self.conn.connect((HOST_NAME, PORT))
                 protocol.send(self.conn, request)
+                # start receive thread
+                threading.Thread(target=self.receive_from_server).start()
 
         except socket.error as sock_err:
             print(sock_err)
@@ -32,7 +34,10 @@ class Client:
         finally:
             self.conn.close()
 
+    def receive_from_server(self):
+        answer: Request = protocol.recv(self.conn)
+
 
 if __name__ == "__main__":
     client = Client()
-    client.send_request(Request('signup', User('yuval','hayun', 'eee', '123')))
+    client.send_request(Request('signup', User('yuval', 'hayun', 'eee', '123')))

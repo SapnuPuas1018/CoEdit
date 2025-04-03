@@ -27,13 +27,9 @@ class AuthApp(ctk.CTk):
         self.next_state = {"signup": {"signup success": "login", "signup failed": "signup"}, "login": {"login success": "files screen", "login failed": (self.change_state())}, "files screen": {"files logout": "signup"}}
 
     def change_state(self, curr):
-        if curr == 'login':
-            thread = threading.Thread(target=self.receive_from_server)
-            thread.start()
+        pass
 
-    def receive_from_server(self):  # call this from a thread in order to not stop ctk .mainloop()
-        data = protocol.recv(self.client.conn)
-        return data
+
 
     def show_login_page(self):
         self.login_gui.show()
