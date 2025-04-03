@@ -46,10 +46,10 @@ class UserDatabase:
             except sqlite3.IntegrityError:
                 return False, "Username already exists."
 
-    def verify_user(self, username, password):
+    def verify_user(self, user):
         """Verify user login credentials."""
         with self.lock:
-            self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
+            self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (user.username, user.password))
             return self.cursor.fetchone() is not None
 
     # def user_exists(self, username):
@@ -126,21 +126,12 @@ class UserDatabase:
 if __name__ == "__main__":
     db = UserDatabase()
 
-
-    print(db.add_user("John", "Doe", "jd123", "securepassword123"))
+    user = User("John", "Doe", "jd123", "securepassword123")
+    print(db.add_user(user))
     print(db.get_user_full_name("jd123"))
-
-
-    print(db.add_file("jd123", "notes.txt", "This is a sample note."))
-    print(db.get_files("jd123"))
-
-
-    print(db.get_file_content("jd123", "notes.txt"))
+    print(db.add_file(user, "notes.txt", 'context in file'))
+    print(db.get_files(user))
+    print(db.get_file_content(user, "notes.txt"))
     print(db.remove_file("jd123", "notes.txt"))
-
-
-    print(db.get_files("jd123"))
-    print(db.user_exists("jd123"))
-    print(db.user_exists("unknown_user"))
-
+    print(db.get_files(user))
     db.close()

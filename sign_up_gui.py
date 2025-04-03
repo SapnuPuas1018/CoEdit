@@ -55,7 +55,6 @@ class SignUpGui:
         signup_result = User(first_name, last_name, username, password)
         print(signup_result)
 
-
         self.client.send_request(Request('signup', signup_result))
 
 

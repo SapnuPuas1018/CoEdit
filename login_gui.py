@@ -1,6 +1,7 @@
 from tkinter import messagebox
 import customtkinter as ctk
 
+from request import Request
 from sign_up_gui import SignUpGui
 from user import User
 
@@ -36,8 +37,7 @@ class LoginGui:
 
         login_user = User('', '', username, password)
         print(login_user)
-        self.client.send_login_user(login_user)
-
+        self.client.send_request(Request('login', login_user))
 
     def show(self):
         self.login_frame.pack()

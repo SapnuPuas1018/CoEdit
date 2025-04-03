@@ -30,38 +30,49 @@ class Server:
         self.database = UserDatabase()
 
     def start_server(self):
-        for i in range(3):
-            thread = Thread(target=self.listen)
+        while True:
+            conn, addr = self.s_sock.accept()
+            print(f'received a connection from {conn}, {addr}')
+            thread = Thread(target=self.listen, args=(conn, ))
             thread.start()
             self.thread_list.append(thread)
 
 
-    def listen(self):
-        while True:
-            conn, addr = self.s_sock.accept()
-            print(f'received a connection from {conn}, {addr}')
-            try:
+    def listen(self, conn):
+        try:
+            while True:
+                print(f'received a connection from {conn}')
                 msg = protocol.recv(conn)
-                self.handle_request(msg)
-            except socket.error as sock_err:
-                print(sock_err)
-            finally:
-                self.server_socket.close()
+                self.handle_request(msg, conn)
+        except socket.error as sock_err:
+            print(sock_err)
+        finally:
+            conn.close()
 
-    def handle_request(self, request: Request):
+    def handle_request(self, request: Request, conn):
         print(f"received from client : {request}")
         if request.request_type == 'signup':
-            self.handle_signup(request)
+            self.handle_signup(request, conn)
+            return
+        elif request.request_type == 'login':
+            self.handle_login(request, conn)
             return
 
-    def handle_signup(self,request: Request):
+    def handle_signup(self, request: Request, conn):
         user: User = request.data
         print(type(user))
         print(user)
         already_exists, message = self.database.add_user(user)
+        protocol.send(conn, already_exists)
         print(message)
+
+    def handle_login(self, request: Request, conn):
+        user: User = request.data
+        success = self.database.verify_user(user)
+        print('login was successful? : ' + str(success))
+        protocol.send(conn, success)
 
 
 if __name__ == "__main__":
     server = Server()
-    server.listen()
+    server.start_server()

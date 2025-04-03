@@ -17,7 +17,6 @@ class Server:
         self.database = UserDatabase()
 
 
-
     def start_server(self):
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(CERT_FILE, KEY_FILE)
@@ -45,8 +44,6 @@ class Server:
         finally:
             self.database.close()
             self.server_socket.close()
-
-
 
 
 def identification(self, client_socket, addr):

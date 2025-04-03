@@ -1,5 +1,6 @@
 import socket
 import ssl
+import threading
 from typing import Any
 
 import protocol  # Assuming you have a custom protocol module
@@ -21,18 +22,15 @@ class Client:
     def send_request(self, request: Request):
         print('-' * 30)
         try:
-            self.conn.connect((HOST_NAME, PORT))
-            protocol.send(self.conn, request)
-            answer = protocol.recv(self.conn)
-            print('server answer: ' + answer)
+            if request.request_type == 'login' or request.request_type == 'signup':
+                self.conn.connect((HOST_NAME, PORT))
+                protocol.send(self.conn, request)
 
         except socket.error as sock_err:
             print(sock_err)
 
         finally:
             self.conn.close()
-
-
 
 if __name__ == "__main__":
     client = Client()

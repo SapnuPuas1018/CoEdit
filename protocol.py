@@ -1,7 +1,3 @@
-"""
-author - Yuval Hayun
-date   - 12/12/23
-"""
 
 import socket
 import ssl
