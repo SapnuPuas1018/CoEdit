@@ -8,6 +8,7 @@ from user import User
 class SignUpGui:
 
     def __init__(self, gui_manager):
+        self.gui_manager = gui_manager
         self.client = gui_manager.client
         self.container = gui_manager.container
         self.signup_frame = ctk.CTkFrame(self.container)
@@ -56,7 +57,7 @@ class SignUpGui:
         print(signup_result)
 
         self.client.send_request(Request('signup', signup_result))
-
+        self.gui_manager.change_state()
 
     def show(self):
         self.signup_frame.pack()

@@ -41,8 +41,8 @@ class Server:
     def listen(self, conn):
         try:
             while True:
-                print(f'received a connection from {conn}')
                 msg = protocol.recv(conn)
+                print(f'received a msg from {conn}, msg {msg}')
                 self.handle_request(msg, conn)
         except socket.error as sock_err:
             print(sock_err)
@@ -63,14 +63,14 @@ class Server:
         print(type(user))
         print(user)
         already_exists, message = self.database.add_user(user)
-        protocol.send(conn, Request('login', already_exists))
+        protocol.send(conn, Request('signup-success', already_exists))
         print(message)
 
     def handle_login(self, request: Request, conn):
         user: User = request.data
         success = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
-        protocol.send(conn, Request('signup', success))
+        protocol.send(conn, Request('login', success))
 
 
 if __name__ == "__main__":

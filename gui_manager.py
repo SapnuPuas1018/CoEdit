@@ -1,4 +1,5 @@
 import threading
+from tkinter.messagebox import showerror
 
 import customtkinter as ctk
 
@@ -17,18 +18,27 @@ class AuthApp(ctk.CTk):
         self.container = ctk.CTkFrame(self)
         self.container.pack(expand=True)
 
-
-
         self.client = Client()
+        self.client.connect()
+
         self.login_gui = LoginGui(self)
 
         self.signup_gui = SignUpGui(self)
+
         self.show_login_page()
-        self.next_state = {"signup": {"signup success": "login", "signup failed": "signup"}, "login": {"login success": "files screen", "login failed": (self.change_state())}, "files screen": {"files logout": "signup"}}
 
-    def change_state(self, curr):
-        pass
+        # self.next_state = {"signup": {"signup success": "login", "signup failed": "signup"}
+        #     , "login": {"login success": "files screen", "login failed": "login"},
+        #                    "files screen": {"files logout": "signup"}}
 
+    def change_state(self):
+        response = self.client.get_response()
+        if not response:
+            return
+        elif response.request_type == 'signup-success' and response.data:
+            self.show_login_page()
+        elif response.request_type == 'login-success' and response.data:
+            self.show_signup_page()
 
 
     def show_login_page(self):
