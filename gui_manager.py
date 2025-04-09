@@ -18,7 +18,7 @@ class AuthApp(ctk.CTk):
         self.container = ctk.CTkFrame(self)
         self.container.pack(expand=True)
 
-        self.client = Client()
+        self.client = Client(self)
         self.client.connect()
 
         self.login_gui = LoginGui(self)

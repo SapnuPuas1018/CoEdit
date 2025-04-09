@@ -2,7 +2,6 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from request import Request
-from sign_up_gui import SignUpGui
 from user import User
 
 

@@ -15,7 +15,7 @@ PORT = 8468
 
 
 class Client:
-    def __init__(self):
+    def __init__(self, gui_manager):
         self.running = True
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.context.check_hostname = False  # Allow self-signed certificate
@@ -25,6 +25,7 @@ class Client:
 
         self.response_queue = queue.Queue()
 
+        self.gui_manager = gui_manager
     def connect(self):
         try:
             self.conn.connect((HOST_NAME, PORT))
@@ -43,6 +44,7 @@ class Client:
         while self.running:
             try:
                 self.response_queue.put(protocol.recv(self.conn))
+                self.gui_manager.change_state()
                 print(f'received a msg from {self.conn}')
             except Exception as e:
                 break

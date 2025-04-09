@@ -11,7 +11,7 @@ class UserDatabase:
         self.create_tables()
 
     def create_tables(self):
-        """Create tables for users and their files."""
+        """Create tables for users, files, and access rights."""
         with self.lock:
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
@@ -25,10 +25,22 @@ class UserDatabase:
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS files (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
+                    owner_id INTEGER NOT NULL,
                     filename TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                    FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS file_access (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    file_id INTEGER NOT NULL,
+                    can_read BOOLEAN NOT NULL DEFAULT 0,
+                    can_write BOOLEAN NOT NULL DEFAULT 0,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE,
+                    UNIQUE(user_id, file_id)
                 )
             """)
             self.conn.commit()
@@ -60,12 +72,12 @@ class UserDatabase:
 
     def add_file(self, user, filename, content):
         """Add a file for a user."""
-        user_id = self.get_user_id(user.username)
-        if user_id:
+        owner_id = self.get_owner_id(user.username)
+        if owner_id:
             with self.lock:
                 self.cursor.execute(
-                    "INSERT INTO files (user_id, filename, content) VALUES (?, ?, ?)",
-                    (user_id, filename, content),
+                    "INSERT INTO files (owner_id, filename, content) VALUES (?, ?, ?)",
+                    (owner_id, filename, content),
                 )
                 self.conn.commit()
                 return True, f"File '{filename}' added successfully."
@@ -73,20 +85,20 @@ class UserDatabase:
 
     def get_files(self, user):
         """Retrieve all files of a user."""
-        user_id = self.get_user_id(user.username)
-        if user_id:
+        owner_id = self.owner_id(user.username)
+        if owner_id:
             with self.lock:
-                self.cursor.execute("SELECT filename FROM files WHERE user_id=?", (user_id,))
+                self.cursor.execute("SELECT filename FROM files WHERE owner_id=?", (owner_id,))
                 return [row[0] for row in self.cursor.fetchall()]
         return []
 
     def get_file_content(self, user, filename):
         """Retrieve the content of a specific file."""
-        user_id = self.get_user_id(user.username)
-        if user_id:
+        owner_id = self.get_owner_id(user.username)
+        if owner_id:
             with self.lock:
                 self.cursor.execute(
-                    "SELECT content FROM files WHERE user_id=? AND filename=?", (user_id, filename)
+                    "SELECT content FROM files WHERE owner_id=? AND filename=?", (owner_id, filename)
                 )
                 result = self.cursor.fetchone()
                 return result[0] if result else None
@@ -94,15 +106,15 @@ class UserDatabase:
 
     def remove_file(self, username, filename):
         """Delete a file from the database."""
-        user_id = self.get_user_id(username)
-        if user_id:
+        owner_id = self.get_owner_id(username)
+        if owner_id:
             with self.lock:
-                self.cursor.execute("DELETE FROM files WHERE user_id=? AND filename=?", (user_id, filename))
+                self.cursor.execute("DELETE FROM files WHERE owner_id=? AND filename=?", (owner_id, filename))
                 self.conn.commit()
                 return True, f"File '{filename}' removed successfully."
         return False, "User not found."
 
-    def get_user_id(self, username):
+    def get_owner_id(self, username):
         """Retrieve user ID from username."""
         with self.lock:
             self.cursor.execute("SELECT id FROM users WHERE username=?", (username,))
