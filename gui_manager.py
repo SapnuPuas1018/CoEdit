@@ -18,18 +18,34 @@ class AuthApp(ctk.CTk):
         self.container = ctk.CTkFrame(self)
         self.container.pack(expand=True)
 
-        self.client = Client(self)
+        self.client = Client()
         self.client.connect()
 
         self.login_gui = LoginGui(self)
-
         self.signup_gui = SignUpGui(self)
 
         self.show_login_page()
 
+        # Start polling the client's queue
+        self.poll_client_response()
+
         # self.next_state = {"signup": {"signup success": "login", "signup failed": "signup"}
         #     , "login": {"login success": "files screen", "login failed": "login"},
         #                    "files screen": {"files logout": "signup"}}
+
+    def poll_client_response(self):
+        """Check for new responses every 100ms."""
+        response = self.client.get_response_nowait()
+        if response:
+            self.handle_response_change_state(response)
+        self.after(100, self.poll_client_response)  # Schedule next poll
+
+    def handle_response_change_state(self, response):
+        if response.request_type == 'signup-success' and response.data:
+            self.show_login_page()
+        elif response.request_type == 'login-success' and response.data:
+            self.show_signup_page()
+        # Add more handling as needed
 
     def change_state(self):
         response = self.client.get_response()
