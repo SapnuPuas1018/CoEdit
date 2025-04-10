@@ -54,6 +54,7 @@ class AuthApp(ctk.CTk):
             self.show_login_page()
         elif response.request_type == 'login-success' and response.data:
             self.show_files_page()
+            self.files_gui.receive_files()
         # Add more handling as needed
 
 

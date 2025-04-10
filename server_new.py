@@ -1,11 +1,11 @@
 
 import socket
 import ssl
-from logging.config import listen
 from threading import Thread
 
 import protocol
 from SQLite_database import UserDatabase
+from file import File
 from request import Request
 from user import User
 
@@ -71,6 +71,24 @@ class Server:
         success = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
         protocol.send(conn, Request('login-success', success))
+        if success:
+            # Get user's files from the database
+            filenames = self.database.get_files(user)
+            files = []
+
+            for filename in filenames:
+                content = self.database.get_file_content(user, filename)
+                # Create a File object
+                file = File(
+                    filename=filename,
+                    content=content,
+                    file_type='txt',  # You can improve this later
+                    owner=user.username,
+                )
+                files.append(file)
+
+            # Send files to client
+            protocol.send(conn, Request("file-list", files))
 
 
 if __name__ == "__main__":

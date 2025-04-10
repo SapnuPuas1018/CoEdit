@@ -85,7 +85,7 @@ class UserDatabase:
 
     def get_files(self, user):
         """Retrieve all files of a user."""
-        owner_id = self.owner_id(user.username)
+        owner_id = self.get_owner_id(user.username)
         if owner_id:
             with self.lock:
                 self.cursor.execute("SELECT filename FROM files WHERE owner_id=?", (owner_id,))
