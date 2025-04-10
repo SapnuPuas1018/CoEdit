@@ -70,7 +70,7 @@ class Server:
         user: User = request.data
         success = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
-        protocol.send(conn, Request('login', success))
+        protocol.send(conn, Request('login-success', success))
 
 
 if __name__ == "__main__":

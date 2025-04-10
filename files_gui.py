@@ -6,10 +6,12 @@ ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
 class FileManagerApp(ctk.CTk):
-    def __init__(self):
+    def __init__(self, gui_manager):
         super().__init__()
-        self.title("Your Files")
-        self.geometry("1000x600")
+        self.container = gui_manager.container
+        self.client = gui_manager.client
+
+        self.files_frame = ctk.CTkFrame(self.container)
 
         # Mock data (you can replace this with database data)
         self.files_data = [
@@ -23,7 +25,7 @@ class FileManagerApp(ctk.CTk):
 
     def create_widgets(self):
         # Top bar
-        top_bar = ctk.CTkFrame(self)
+        top_bar = ctk.CTkFrame(self.files_frame)
         top_bar.pack(fill="x", padx=10, pady=10)
 
         self.disconnect_btn = ctk.CTkButton(top_bar, text="Disconnect", command=self.disconnect)
@@ -41,7 +43,7 @@ class FileManagerApp(ctk.CTk):
         self.search_entry.bind("<KeyRelease>", lambda e: self.search_files())
 
         # File list headers
-        header_frame = ctk.CTkFrame(self)
+        header_frame = ctk.CTkFrame(self.files_frame)
         header_frame.pack(fill="x", padx=20)
 
         ctk.CTkLabel(header_frame, text="⋮", width=40).grid(row=0, column=0)
@@ -50,7 +52,7 @@ class FileManagerApp(ctk.CTk):
         ctk.CTkLabel(header_frame, text="Date Modified", width=150).grid(row=0, column=3)
 
         # File entries area
-        self.file_frame = ctk.CTkScrollableFrame(self, height=500)
+        self.file_frame = ctk.CTkScrollableFrame(self.files_frame)
         self.file_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         self.display_files()
@@ -116,7 +118,14 @@ class FileManagerApp(ctk.CTk):
         result = messagebox.askyesno("Disconnect", "Are you sure you want to disconnect?")
         if result:
             self.destroy()
+    def show(self):
+        self.files_frame.pack(fill="both", expand=True)
+    
+    def hide(self):
+        self.files_frame.pack_forget()
+
 
 if __name__ == "__main__":
-    app = FileManagerApp()
-    app.mainloop()
+    # app = FileManagerApp()
+    # app.mainloop()
+    pass

@@ -4,16 +4,20 @@ from tkinter.messagebox import showerror
 import customtkinter as ctk
 
 import protocol
+from files_gui import FileManagerApp
 from login_gui import LoginGui
 from sign_up_gui import SignUpGui
 from client_new import Client
+
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme("blue")
 
 class AuthApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.signup_result = None
         self.title("CoEdit - login")
-        self.geometry("400x300")
+        self.geometry("1200x900")
 
         self.container = ctk.CTkFrame(self)
         self.container.pack(expand=True)
@@ -24,7 +28,9 @@ class AuthApp(ctk.CTk):
         self.login_gui = LoginGui(self)
         self.signup_gui = SignUpGui(self)
 
-        self.show_login_page()
+        self.files_gui = FileManagerApp(self)
+
+        self.login_gui.show()
 
         # Start polling the client's queue
         self.poll_client_response()
@@ -41,20 +47,14 @@ class AuthApp(ctk.CTk):
         self.after(100, self.poll_client_response)  # Schedule next poll
 
     def handle_response_change_state(self, response):
+        print('nigger')
+        print(response.request_type)
+        print(response.data)
         if response.request_type == 'signup-success' and response.data:
             self.show_login_page()
         elif response.request_type == 'login-success' and response.data:
-            self.show_signup_page()
+            self.show_files_page()
         # Add more handling as needed
-
-    def change_state(self):
-        response = self.client.get_response()
-        if not response:
-            return
-        elif response.request_type == 'signup-success' and response.data:
-            self.show_login_page()
-        elif response.request_type == 'login-success' and response.data:
-            self.show_signup_page()
 
 
     def show_login_page(self):
@@ -64,6 +64,11 @@ class AuthApp(ctk.CTk):
     def show_signup_page(self):
         self.signup_gui.show()
         self.login_gui.hide()
+
+    def show_files_page(self):
+        self.login_gui.hide()
+        self.files_gui.show()
+
 
 
 if __name__ == "__main__":
