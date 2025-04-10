@@ -1,7 +1,8 @@
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from file import File
 from request import Request
 
 ctk.set_appearance_mode("light")
@@ -25,22 +26,42 @@ class FileManagerApp(ctk.CTk):
     def receive_files(self):
         '''Receives the files from server - database as a list[File] object'''
         print('Requesting file list from server...')
+
         file_objects = self.client.get_response_nowait()
+        # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
         print(type(file_objects))
         print(file_objects)
-        if not file_objects:
-            print("user does not have any files")
-            self.files_data = []
-            self.filtered_files = []
-        else:
-            print(f"Received files: {file_objects}")
-            self.files_data = [{
-                "name": file.filename,
-                "owner": file.owner,
-                "date": file.creation_date.strftime("%Y-%m-%d"),
-                "object": file  # Keep reference to the original File object
-            } for file in file_objects.data]
-            self.filtered_files = self.files_data.copy()
+
+        file_objects = Request('', [
+            File("notes", "Meeting notes from team sync", "txt", "alice"),
+            File("presentation", "<slide1><slide2>", "txt", "bob", datetime.now() - timedelta(days=2)),
+            File("report", "Q1 financial data", "txt", "charlie", datetime.now() - timedelta(days=30)),
+            File("script", "print('Hello, world!')", "txt", "david"),
+            File("todo", "- Buy milk\n- Send email", "txt", "alice", datetime.now() - timedelta(hours=5)),
+            File("data", "name,age\nJohn,23\nLisa,29", "txt", "eve"),
+            File("design", "<svg>...</svg>", "svg", "txt", datetime.now() - timedelta(days=10)),
+            File("resume", "Education: ...", "docx", "txt", datetime.now() - timedelta(weeks=3)),
+            File("summary", "Key takeaways from the project", "txt", "hannah"),
+            File("diagram", "(A)-->[B]", "drawio", "txt", datetime.now() - timedelta(days=1)),
+        ])
+
+        if file_objects is not None:
+            self.file_list = file_objects.data
+            self.filtered_files = self.file_list.copy()
+
+        # if not file_objects:
+        #     print("user does not have any files")
+        #     self.files_data = []
+        #     self.filtered_files = []
+        # else:
+        #     print(f"Received files: {file_objects}")
+        #     self.files_data = [{
+        #         "name": file.filename,
+        #         "owner": file.owner,
+        #         "date": file.creation_date.strftime("%Y-%m-%d"),
+        #         "object": file  # Keep reference to the original File object
+        #     } for file in file_objects.data]
+        #     self.filtered_files = self.files_data.copy()
 
         self.display_files()
 
@@ -53,12 +74,12 @@ class FileManagerApp(ctk.CTk):
             action_btn = ctk.CTkButton(self.file_frame, text="⋮", width=30, command=lambda f=file: self.show_actions(f))
             action_btn.grid(row=i, column=0, padx=5, pady=5)
 
-            name_label = ctk.CTkLabel(self.file_frame, text=file["name"], anchor="w", width=200)
+            name_label = ctk.CTkLabel(self.file_frame, text=file.filename, anchor="w", width=200)
             name_label.grid(row=i, column=1, sticky="w")
             name_label.bind("<Double-Button-1>", lambda e, f=file: self.open_file(f))
 
-            ctk.CTkLabel(self.file_frame, text=file["owner"], width=100).grid(row=i, column=2)
-            ctk.CTkLabel(self.file_frame, text=file["date"], width=150).grid(row=i, column=3)
+            ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
+            ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
 
 
     def create_widgets(self):
@@ -103,62 +124,63 @@ class FileManagerApp(ctk.CTk):
             action_btn = ctk.CTkButton(self.file_frame, text="⋮", width=30, command=lambda f=file: self.show_actions(f))
             action_btn.grid(row=i, column=0, padx=5, pady=5)
 
-            name_label = ctk.CTkLabel(self.file_frame, text=file["name"], anchor="w", width=200)
+            name_label = ctk.CTkLabel(self.file_frame, text=file.filename, anchor="w", width=200)
             name_label.grid(row=i, column=1, sticky="w")
             name_label.bind("<Double-Button-1>", lambda e, f=file: self.open_file(f))
 
-            ctk.CTkLabel(self.file_frame, text=file["owner"], width=100).grid(row=i, column=2)
-            ctk.CTkLabel(self.file_frame, text=file["date"], width=150).grid(row=i, column=3)
+            ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
+            ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
 
     def search_files(self):
         query = self.search_entry.get().lower()
-        self.filtered_files = [file for file in self.files_data if query in file["name"].lower()]
+        self.filtered_files = [file for file in self.file_list if query in file.filename.lower()]
         self.display_files()
 
     def sort_files(self, criterion):
         if criterion == "Name":
-            self.filtered_files.sort(key=lambda x: x["name"].lower())
+            self.filtered_files.sort(key=lambda x: x.filename.lower())
         elif criterion == "Owner":
-            self.filtered_files.sort(key=lambda x: x["owner"].lower())
+            self.filtered_files.sort(key=lambda x: x.owner.lower())
         elif criterion == "Date":
-            self.filtered_files.sort(key=lambda x: x["date"], reverse=True)
+            self.filtered_files.sort(key=lambda x: x.creation_date.date(), reverse=True)
         self.display_files()
 
     def show_actions(self, file):
         action = messagebox.askquestion("File Actions",
-                                        f"What would you like to do with '{file['name']}'?\nYes: Rename\nNo: Delete",
+                                        f"What would you like to do with '{file.filename}'?\nYes: Rename\nNo: Delete",
                                         icon='question')
         if action == 'yes':
-            new_name = simpledialog.askstring("Rename File", "Enter new name:", initialvalue=file["name"])
+            new_name = simpledialog.askstring("Rename File", "Enter new name:", initialvalue=file.filename)
             if new_name:
-                file["name"] = new_name
-                file["object"].filename = new_name  # Update original File object
+                file.filename = new_name
         elif action == 'no':
-            if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{file['name']}'?"):
-                self.files_data.remove(file)
+            if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{file.filename}'?"):
+                # self.files_data.remove(file)
+                # do later
+                pass
         self.search_files()
 
     def open_file(self, file):
-        file_obj = file["object"]
         new_window = ctk.CTkToplevel(self)
-        new_window.title(file_obj.filename)
+        new_window.title(file.filename)
         new_window.geometry("600x400")
-        ctk.CTkLabel(new_window, text=f"{file_obj.filename}.{file_obj.file_type}", font=("Arial", 16)).pack(pady=10)
+        ctk.CTkLabel(new_window, text=f"{file.filename}.{file.file_type}", font=("Arial", 16)).pack(pady=10)
 
         content_box = ctk.CTkTextbox(new_window, wrap="word", width=550, height=300)
-        content_box.insert("1.0", file_obj.content)
+        content_box.insert("1.0", file.content)
         content_box.pack(padx=20, pady=10)
 
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
-            new_file = {
-                "name": new_name,
-                "owner": "Me",
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "object": None  # You may want to construct a File object here if needed
-            }
-            self.files_data.append(new_file)
+            new_file = File(filename= 'new_name',content= '', file_type= 'txt', owner= 'Me', creation_date= datetime.now().strftime("%Y-%m-%d"))
+            # new_file = {
+            #     "name": new_name,
+            #     "owner": "Me",
+            #     "date": datetime.now().strftime("%Y-%m-%d"),
+            #     "object": None  # You may want to construct a File object here if needed
+            # }
+            self.file_list.append(new_file)
             self.search_files()
 
     def disconnect(self):
