@@ -6,6 +6,7 @@ import customtkinter as ctk
 import protocol
 from files_gui import FileManagerApp
 from login_gui import LoginGui
+from request import Request
 from sign_up_gui import SignUpGui
 from client_new import Client
 
@@ -18,6 +19,8 @@ class AuthApp(ctk.CTk):
         self.signup_result = None
         self.title("CoEdit - login")
         self.geometry("1200x900")
+
+        self.my_user = None
 
         self.container = ctk.CTkFrame(self)
         self.container.pack(expand=True)
@@ -35,6 +38,7 @@ class AuthApp(ctk.CTk):
         # Start polling the client's queue
         self.poll_client_response()
 
+
         # self.next_state = {"signup": {"signup success": "login", "signup failed": "signup"}
         #     , "login": {"login success": "files screen", "login failed": "login"},
         #                    "files screen": {"files logout": "signup"}}
@@ -47,14 +51,19 @@ class AuthApp(ctk.CTk):
         self.after(100, self.poll_client_response)  # Schedule next poll
 
     def handle_response_change_state(self, response):
-        print('nigger')
         print(response.request_type)
         print(response.data)
         if response.request_type == 'signup-success' and response.data:
             self.show_login_page()
-        elif response.request_type == 'login-success' and response.data:
+        elif response.request_type == 'login-success' and response.data[0]:
+            self.my_user = response.data[1]
+            print(self.my_user)
+            self.files_gui.my_user = self.my_user
             self.show_files_page()
-            self.files_gui.receive_files()
+            self.files_gui.load_files()
+        elif response.request_type == "add-file-success":
+            file = response.data
+
         # Add more handling as needed
 
 

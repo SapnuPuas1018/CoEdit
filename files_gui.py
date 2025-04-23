@@ -17,33 +17,34 @@ class FileManagerApp(ctk.CTk):
 
         self.files_frame = ctk.CTkFrame(self.container)
 
-        self.files_data = []
         self.filtered_files = []
 
         self.create_widgets()
-        self.receive_files()  # Call this early to populate files
+        self.load_files()  # Call this early to populate files
+        self.my_user = None
 
-    def receive_files(self):
+    def load_files(self):
         '''Receives the files from server - database as a list[File] object'''
         print('Requesting file list from server...')
 
         file_objects = self.client.get_response_nowait()
+        print(f'file_objects : {file_objects}')
         # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
         print(type(file_objects))
         print(file_objects)
 
-        file_objects = Request('', [
-            File("notes", "Meeting notes from team sync", "txt", "alice"),
-            File("presentation", "<slide1><slide2>", "txt", "bob", datetime.now() - timedelta(days=2)),
-            File("report", "Q1 financial data", "txt", "charlie", datetime.now() - timedelta(days=30)),
-            File("script", "print('Hello, world!')", "txt", "david"),
-            File("todo", "- Buy milk\n- Send email", "txt", "alice", datetime.now() - timedelta(hours=5)),
-            File("data", "name,age\nJohn,23\nLisa,29", "txt", "eve"),
-            File("design", "<svg>...</svg>", "svg", "txt", datetime.now() - timedelta(days=10)),
-            File("resume", "Education: ...", "docx", "txt", datetime.now() - timedelta(weeks=3)),
-            File("summary", "Key takeaways from the project", "txt", "hannah"),
-            File("diagram", "(A)-->[B]", "drawio", "txt", datetime.now() - timedelta(days=1)),
-        ])
+        # file_objects = Request('', [
+        #     File(1,"notes", "Meeting notes from team sync", "alice"),
+        #     File(2,"presentation", "<slide1><slide2>",  "bob", datetime.now() - timedelta(days=2)),
+        #     File(3,"report", "Q1 financial data",  "charlie", datetime.now() - timedelta(days=30)),
+        #     File(4,"script", "print('Hello, world!')",  "david"),
+        #     File(5,"todo", "- Buy milk\n- Send email",  "alice", datetime.now() - timedelta(hours=5)),
+        #     File(6,"data", "name,age\nJohn,23\nLisa,29", "eve"),
+        #     File(7,"design", "<svg>...</svg>", "svg",  datetime.now() - timedelta(days=10)),
+        #     File(8,"resume", "Education: ...", "docx",  datetime.now() - timedelta(weeks=3)),
+        #     File(9,"summary", "Key takeaways from the project",  "hannah"),
+        #     File(10,"diagram", "(A)-->[B]", "drawio", datetime.now() - timedelta(days=1)),
+        # ])
 
         if file_objects is not None:
             self.file_list = file_objects.data
@@ -164,7 +165,7 @@ class FileManagerApp(ctk.CTk):
         new_window = ctk.CTkToplevel(self)
         new_window.title(file.filename)
         new_window.geometry("600x400")
-        ctk.CTkLabel(new_window, text=f"{file.filename}.{file.file_type}", font=("Arial", 16)).pack(pady=10)
+        ctk.CTkLabel(new_window, text= f"{file.filename}", font= ("Arial", 16)).pack(pady=10)
 
         content_box = ctk.CTkTextbox(new_window, wrap="word", width=550, height=300)
         content_box.insert("1.0", file.content)
@@ -173,13 +174,11 @@ class FileManagerApp(ctk.CTk):
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
-            new_file = File(filename= 'new_name',content= '', file_type= 'txt', owner= 'Me', creation_date= datetime.now().strftime("%Y-%m-%d"))
-            # new_file = {
-            #     "name": new_name,
-            #     "owner": "Me",
-            #     "date": datetime.now().strftime("%Y-%m-%d"),
-            #     "object": None  # You may want to construct a File object here if needed
-            # }
+            new_file = File(filename= new_name, content= '', owner= self.my_user.username, creation_date= datetime.now().strftime("%Y-%m-%d"))
+
+            # todo: add new file to database
+            self.client.send_request(Request("add-file", [new_file, self.my_user]))
+
             self.file_list.append(new_file)
             self.search_files()
 

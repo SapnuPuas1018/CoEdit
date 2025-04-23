@@ -57,6 +57,8 @@ class Server:
         elif request.request_type == 'login':
             self.handle_login(request, conn)
             return
+        elif request.request_type == 'add-file':
+            self.handle_add_file(request, conn)
 
     def handle_signup(self, request: Request, conn):
         user: User = request.data
@@ -70,26 +72,33 @@ class Server:
         user: User = request.data
         success = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
-        protocol.send(conn, Request('login-success', success))
+        protocol.send(conn, Request('login-success', [success, user]))
         if success:
-            # Get user's files from the database
-            filenames = self.database.get_files(user)
-            files = []
+            self.get_user_files(user, conn)
 
-            for filename in filenames:
-                content = self.database.get_file_content(user, filename)
-                # Create a File object
-                file = File(
-                    filename=filename,
-                    content=content,
-                    file_type='txt',  # You can improve this later
-                    owner=user.username,
-                )
-                files.append(file)
 
-            # Send files to client
-            protocol.send(conn, Request("file-list", files))
+    def get_user_files(self, user: User, conn):
+        files: list[File] = self.database.get_readable_files_per_user(user)
+        files_user_can_read = []
+        for file in files:
+            if self.database.can_user_read_file(user, file):
+                files_user_can_read.append(file)
+                files.remove(file)
 
+
+        protocol.send(conn, Request("file-list", files_user_can_read))
+
+
+    def handle_add_file(self, request, conn):
+        file = request.data[0]
+        user = request.data[1]
+        #   add file access to owner/user
+        self.database.add_file(user, file, '')
+        self.database.add_file_access(user, file, True, True)
+
+
+
+        
 
 if __name__ == "__main__":
     server = Server()

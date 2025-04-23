@@ -1,5 +1,7 @@
 import sqlite3
 import threading
+
+from file import File
 from user import User
 
 class UserDatabase:
@@ -24,10 +26,11 @@ class UserDatabase:
             """)
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS files (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id TEXT PRIMARY KEY,
                     owner_id INTEGER NOT NULL,
                     filename TEXT NOT NULL,
                     content TEXT NOT NULL,
+                    creation_date TEXT DEFAULT (datetime('now')),
                     FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
                 )
             """)
@@ -35,7 +38,7 @@ class UserDatabase:
                 CREATE TABLE IF NOT EXISTS file_access (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
-                    file_id INTEGER NOT NULL,
+                    file_id TEXT,
                     can_read BOOLEAN NOT NULL DEFAULT 0,
                     can_write BOOLEAN NOT NULL DEFAULT 0,
                     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -70,31 +73,22 @@ class UserDatabase:
     #         self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
     #         return self.cursor.fetchone() is not None
 
-    def add_file(self, user, filename, content):
+    def add_file(self, user, file: File, content):
         """Add a file for a user."""
-        owner_id = self.get_owner_id(user.username)
+        owner_id = self.get_user_id(user.username)
         if owner_id:
             with self.lock:
                 self.cursor.execute(
-                    "INSERT INTO files (owner_id, filename, content) VALUES (?, ?, ?)",
-                    (owner_id, filename, content),
+                    "INSERT INTO files (id, owner_id, filename, content) VALUES (?, ?, ?, ?)",
+                    (file.file_id, owner_id, file.filename, content),
                 )
                 self.conn.commit()
-                return True, f"File '{filename}' added successfully."
+                return True, f"File '{file.filename}' added successfully."
         return False, "User not found."
-
-    def get_files(self, user):
-        """Retrieve all files of a user."""
-        owner_id = self.get_owner_id(user.username)
-        if owner_id:
-            with self.lock:
-                self.cursor.execute("SELECT filename FROM files WHERE owner_id=?", (owner_id,))
-                return [row[0] for row in self.cursor.fetchall()]
-        return []
 
     def get_file_content(self, user, filename):
         """Retrieve the content of a specific file."""
-        owner_id = self.get_owner_id(user.username)
+        owner_id = self.get_user_id(user.username)
         if owner_id:
             with self.lock:
                 self.cursor.execute(
@@ -106,7 +100,7 @@ class UserDatabase:
 
     def remove_file(self, username, filename):
         """Delete a file from the database."""
-        owner_id = self.get_owner_id(username)
+        owner_id = self.get_user_id(username)
         if owner_id:
             with self.lock:
                 self.cursor.execute("DELETE FROM files WHERE owner_id=? AND filename=?", (owner_id, filename))
@@ -114,12 +108,89 @@ class UserDatabase:
                 return True, f"File '{filename}' removed successfully."
         return False, "User not found."
 
-    def get_owner_id(self, username):
+    def get_user_id(self, username):
         """Retrieve user ID from username."""
         with self.lock:
             self.cursor.execute("SELECT id FROM users WHERE username=?", (username,))
             result = self.cursor.fetchone()
             return result[0] if result else None
+
+    def can_user_read_file(self, user: User, file: File) -> bool:
+        user_id = self.get_user_id(user.username)
+        file_id = file.file_id
+        with self.lock:
+            self.cursor.execute(
+                "SELECT can_read FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
+            )
+            result = self.cursor.fetchone()
+            return result[0] if result else False
+
+
+    def can_user_write_file(self, user: User, file: File) -> bool:
+        user_id = self.get_user_id(user.username)
+        file_id = file.file_id
+        with self.lock:
+            self.cursor.execute(
+                "SELECT can_write FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
+            )
+            result = self.cursor.fetchone()
+            return result[0] if result else False
+
+    def get_readable_files_per_user(self, user):
+        """Retrieve all files the user has read access to as File objects."""
+        user_id = self.get_user_id(user.username)
+        with self.lock:
+            self.cursor.execute("""
+                SELECT f.id, f.filename, f.content, f.owner_id, f.creation_date
+                FROM files f
+                JOIN file_access fa ON f.id = fa.file_id
+                WHERE fa.user_id = ? AND fa.can_read = 1
+            """, (user_id,))
+
+            rows = self.cursor.fetchall()
+            readable_files = []
+            for row in rows:
+                file = File(
+                    file_id=row[0],
+                    filename=row[1],
+                    content=row[2],
+                    owner=row[3],
+                    creation_date=row[4]
+                )
+                readable_files.append(file)
+            return readable_files
+
+    def add_file_access(self, user: User, file: File, can_read=False, can_write=False):
+        """Grant or update read/write access to a file for a specific user."""
+        file_id = file.file_id
+        user_id = self.get_user_id(user.username)
+        if user_id is None:
+            return False
+
+        with self.lock:
+            # Check if access already exists
+            self.cursor.execute(
+                "SELECT id FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
+            )
+            exists = self.cursor.fetchone()
+
+            if exists:
+                # Update existing access rights
+                self.cursor.execute("""
+                    UPDATE file_access
+                    SET can_read = ?, can_write = ?
+                    WHERE user_id = ? AND file_id = ?
+                """, (int(can_read), int(can_write), user_id, file_id))
+
+            else:
+                # Insert new access rights
+                self.cursor.execute("""
+                    INSERT INTO file_access (user_id, file_id, can_read, can_write)
+                    VALUES (?, ?, ?, ?)
+                """, (user_id, file_id, int(can_read), int(can_write)))
+
+            self.conn.commit()
+            return True
 
     def get_user_full_name(self, username):
         """Retrieve the full name of a user."""

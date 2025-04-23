@@ -2,11 +2,8 @@ import queue
 import socket
 import ssl
 import threading
-import time
-from ssl import SSLContext
-from typing import Any
 
-import protocol  # Assuming you have a custom protocol module
+import protocol
 from request import Request
 from user import User
 
@@ -24,6 +21,7 @@ class Client:
         self.conn = self.context.wrap_socket(self.my_socket, server_hostname=HOST_NAME)
 
         self.response_queue = queue.Queue()
+        # self.my_user
 
     def connect(self):
         try:
@@ -46,13 +44,6 @@ class Client:
         self.running = False
         self.conn.close()
 
-    def get_response(self, timeout=5) -> Request | None:
-        """Fetch a response from the queue (waits up to `timeout` seconds)."""
-        try:
-            return self.response_queue.get(timeout=timeout)  # Waits for response
-        except queue.Empty:
-            return None
-
     def send_request(self, request: Request):
         try:
             protocol.send(self.conn, request)
@@ -65,6 +56,7 @@ class Client:
             return self.response_queue.get_nowait()
         except queue.Empty:
             return None
+
 
 
 if __name__ == "__main__":
