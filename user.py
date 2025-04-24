@@ -40,11 +40,12 @@ class User:
 
 if __name__ == '__main__':
 # Example usage:
-    user1 = User('John','Doe',"jd123", "securepassword123")
-    print(user1.add_file("notes.txt", "This is a sample text file."))
-    print(user1.add_file("todo.txt", "Buy milk\nComplete project."))
-    print(user1.list_files())
-    print(user1.get_file("notes.txt"))
-    print(user1.remove_file("todo.txt"))
-    print(user1.list_files())
-    print(user1)
+        pass
+#     user1 = User('John','Doe',"jd123", "securepassword123")
+#     print(user1.add_file("notes.txt", "This is a sample text file."))
+#     print(user1.add_file("todo.txt", "Buy milk\nComplete project."))
+#     print(user1.list_files())
+#     print(user1.get_file("notes.txt"))
+#     print(user1.remove_file("todo.txt"))
+#     print(user1.list_files())
+#     print(user1)

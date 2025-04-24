@@ -47,7 +47,8 @@ class Server:
         except socket.error as sock_err:
             print(sock_err)
         finally:
-            conn.close()
+            conn.close()    # todo check if it actually closes the connection
+
 
     def handle_request(self, request: Request, conn):
         print(f"received from client : {request}")
@@ -59,6 +60,9 @@ class Server:
             return
         elif request.request_type == 'add-file':
             self.handle_add_file(request, conn)
+        elif request.request_type == 'refresh-files':
+            user = request.data
+            self.get_user_files(user, conn)
 
     def handle_signup(self, request: Request, conn):
         user: User = request.data
@@ -79,12 +83,14 @@ class Server:
 
     def get_user_files(self, user: User, conn):
         files: list[File] = self.database.get_readable_files_per_user(user)
+
+        # todo: check if these like are unnecessary
         files_user_can_read = []
         for file in files:
             if self.database.can_user_read_file(user, file):
                 files_user_can_read.append(file)
                 files.remove(file)
-
+        # todo :until here-------------------------------
 
         protocol.send(conn, Request("file-list", files_user_can_read))
 

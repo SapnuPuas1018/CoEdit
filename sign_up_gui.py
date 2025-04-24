@@ -57,7 +57,6 @@ class SignUpGui:
         print(signup_result)
 
         self.client.send_request(Request('signup', signup_result))
-        # self.gui_manager.change_state()
 
     def show(self):
         self.signup_frame.pack()

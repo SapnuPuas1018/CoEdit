@@ -58,9 +58,9 @@ class AuthApp(ctk.CTk):
         elif response.request_type == 'login-success' and response.data[0]:
             self.my_user = response.data[1]
             print(self.my_user)
-            self.files_gui.my_user = self.my_user
             self.show_files_page()
             self.files_gui.load_files()
+            self.files_gui.my_user = self.my_user
         elif response.request_type == "add-file-success":
             file = response.data
 
@@ -78,7 +78,6 @@ class AuthApp(ctk.CTk):
     def show_files_page(self):
         self.login_gui.hide()
         self.files_gui.show()
-
 
 
 if __name__ == "__main__":

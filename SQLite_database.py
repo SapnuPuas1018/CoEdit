@@ -168,29 +168,30 @@ class UserDatabase:
             return False
 
         with self.lock:
-            # Check if access already exists
-            self.cursor.execute(
-                "SELECT id FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
-            )
-            exists = self.cursor.fetchone()
-
-            if exists:
-                # Update existing access rights
-                self.cursor.execute("""
-                    UPDATE file_access
-                    SET can_read = ?, can_write = ?
-                    WHERE user_id = ? AND file_id = ?
-                """, (int(can_read), int(can_write), user_id, file_id))
-
-            else:
-                # Insert new access rights
-                self.cursor.execute("""
-                    INSERT INTO file_access (user_id, file_id, can_read, can_write)
-                    VALUES (?, ?, ?, ?)
-                """, (user_id, file_id, int(can_read), int(can_write)))
+            # Insert new access rights
+            self.cursor.execute("""
+                INSERT INTO file_access (user_id, file_id, can_read, can_write)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, file_id, int(can_read), int(can_write)))
 
             self.conn.commit()
             return True
+
+    def change_file_access(self, user: User, file: File, can_read: bool, can_write: bool):
+        file_id = file.file_id
+        user_id = self.get_user_id(user.username)
+        if user_id is None:
+            return False
+        with self.lock:
+            # Update existing access rights
+            self.cursor.execute("""
+                UPDATE file_access
+                SET can_read = ?, can_write = ?
+                WHERE user_id = ? AND file_id = ?
+            """, (int(can_read), int(can_write), user_id, file_id))
+            self.conn.commit()
+            return True
+
 
     def get_user_full_name(self, username):
         """Retrieve the full name of a user."""

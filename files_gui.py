@@ -20,7 +20,7 @@ class FileManagerApp(ctk.CTk):
         self.filtered_files = []
 
         self.create_widgets()
-        self.load_files()  # Call this early to populate files
+        # self.load_files()
         self.my_user = None
 
     def load_files(self):
@@ -32,6 +32,7 @@ class FileManagerApp(ctk.CTk):
         # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
         print(type(file_objects))
         print(file_objects)
+
 
         # file_objects = Request('', [
         #     File(1,"notes", "Meeting notes from team sync", "alice"),
@@ -66,6 +67,22 @@ class FileManagerApp(ctk.CTk):
 
         self.display_files()
 
+    def refresh_files(self):
+        '''Receives the files from server - database as a list[File] object'''
+        pass
+        print('Requesting file list from server...')
+        self.client.send_request(Request('refresh-files', self.my_user))
+
+        file_objects = self.client.get_response_nowait()
+        print(f'file_objects : {file_objects}')
+        # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
+        print(type(file_objects))
+
+        if file_objects is not None:
+            self.file_list = file_objects.data
+            self.filtered_files = self.file_list.copy()
+
+        self.display_files()
 
     def display_files(self):
         for widget in self.file_frame.winfo_children():
@@ -82,7 +99,6 @@ class FileManagerApp(ctk.CTk):
             ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
             ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
 
-
     def create_widgets(self):
         # Top bar
         top_bar = ctk.CTkFrame(self.files_frame)
@@ -93,6 +109,10 @@ class FileManagerApp(ctk.CTk):
 
         self.add_file_btn = ctk.CTkButton(top_bar, text="+ New File", command=self.add_file)
         self.add_file_btn.pack(side="left", padx=10)
+
+        # Refresh button with Unicode icon
+        self.refresh_btn = ctk.CTkButton(top_bar, text="↻", width=40, command=self.refresh_files)
+        self.refresh_btn.pack(side="left", padx=5)
 
         self.sort_by = ctk.CTkOptionMenu(top_bar, values=["Name", "Owner", "Date"], command=self.sort_files)
         self.sort_by.set("Sort by")
@@ -111,26 +131,10 @@ class FileManagerApp(ctk.CTk):
         ctk.CTkLabel(header_frame, text="Owner", width=100).grid(row=0, column=2)
         ctk.CTkLabel(header_frame, text="Date Modified", width=150).grid(row=0, column=3)
 
-        # File entries area
         self.file_frame = ctk.CTkScrollableFrame(self.files_frame)
         self.file_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         self.display_files()
-
-    def display_files(self):
-        for widget in self.file_frame.winfo_children():
-            widget.destroy()
-
-        for i, file in enumerate(self.filtered_files):
-            action_btn = ctk.CTkButton(self.file_frame, text="⋮", width=30, command=lambda f=file: self.show_actions(f))
-            action_btn.grid(row=i, column=0, padx=5, pady=5)
-
-            name_label = ctk.CTkLabel(self.file_frame, text=file.filename, anchor="w", width=200)
-            name_label.grid(row=i, column=1, sticky="w")
-            name_label.bind("<Double-Button-1>", lambda e, f=file: self.open_file(f))
-
-            ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
-            ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
 
     def search_files(self):
         query = self.search_entry.get().lower()
@@ -161,7 +165,7 @@ class FileManagerApp(ctk.CTk):
                 pass
         self.search_files()
 
-    def open_file(self, file):
+    def open_file(self, file): # todo: use instead the already built editor that i have created
         new_window = ctk.CTkToplevel(self)
         new_window.title(file.filename)
         new_window.geometry("600x400")
@@ -176,7 +180,6 @@ class FileManagerApp(ctk.CTk):
         if new_name:
             new_file = File(filename= new_name, content= '', owner= self.my_user.username, creation_date= datetime.now().strftime("%Y-%m-%d"))
 
-            # todo: add new file to database
             self.client.send_request(Request("add-file", [new_file, self.my_user]))
 
             self.file_list.append(new_file)
