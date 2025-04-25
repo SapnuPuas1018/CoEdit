@@ -63,6 +63,20 @@ class Server:
         elif request.request_type == 'refresh-files':
             user = request.data
             self.get_user_files(user, conn)
+        elif request.request_type == 'rename-file':
+            self.handle_file_rename(request, conn)
+        elif request.request_type == 'delete-file':
+            pass
+        elif request.request_type == 'get-access-list':
+            self.handle_get_access_list(request, conn)
+
+
+
+    def handle_get_access_list(self, request: Request, conn):
+        file: File = request.data
+        file_accesses = self.database.get_users_with_access_to_file(file)
+        protocol.send(conn, Request('file-access', file_accesses))
+
 
     def handle_signup(self, request: Request, conn):
         user: User = request.data
@@ -84,7 +98,7 @@ class Server:
     def get_user_files(self, user: User, conn):
         files: list[File] = self.database.get_readable_files_per_user(user)
 
-        # todo: check if these like are unnecessary
+        # todo: check if these are unnecessary
         files_user_can_read = []
         for file in files:
             if self.database.can_user_read_file(user, file):
@@ -102,7 +116,15 @@ class Server:
         self.database.add_file(user, file, '')
         self.database.add_file_access(user, file, True, True)
 
+    def handle_file_rename(self, request: Request, conn):
+        file = request.data[0]
+        new_name = request.data[1]
+        success = self.database.rename_file(file, new_name)
 
+        if success:  # todo: check if necessary to check successfulness and send back the success result
+            print('file was updated successfully')
+        else:
+            print('file was not updated successfully)')
 
         
 

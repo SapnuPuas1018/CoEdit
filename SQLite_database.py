@@ -1,8 +1,12 @@
 import sqlite3
 import threading
 
+from file_access import FileAccess
+
 from file import File
 from user import User
+from user_access import UserAccess
+
 
 class UserDatabase:
     def __init__(self, db_name="users.db"):
@@ -191,6 +195,42 @@ class UserDatabase:
             """, (int(can_read), int(can_write), user_id, file_id))
             self.conn.commit()
             return True
+
+    def get_users_with_access_to_file(self, file: File) -> FileAccess:
+        """
+        Retrieve a FileAccess object for a specific file, including all users who have access to it.
+        """
+        with self.lock:
+            self.cursor.execute("""
+                SELECT u.id, u.first_name, u.last_name, u.username, fa.can_read, fa.can_write
+                FROM file_access fa
+                JOIN users u ON fa.user_id = u.id
+                WHERE fa.file_id = ?
+            """, (file.file_id,))
+
+            rows = self.cursor.fetchall()
+            user_accesses = []
+
+            for row in rows:
+                user_id, first_name, last_name, username, can_read, can_write = row
+
+                user = User(first_name=first_name, last_name=last_name, username=username, password="")
+                user.id = user_id
+
+                user_access = UserAccess(user=user, can_read=bool(can_read), can_write=bool(can_write))
+                user_accesses.append(user_access)
+
+            return FileAccess(file=file, user_accesses=user_accesses)
+
+    def rename_file(self, file: File, new_filename: str) -> bool:
+        """Rename a file using its file ID."""
+        with self.lock:
+            self.cursor.execute(
+                "UPDATE files SET filename = ? WHERE id = ?",
+                (new_filename, file.file_id)
+            )
+            self.conn.commit()
+            return self.cursor.rowcount > 0  # True if a row was updated
 
 
     def get_user_full_name(self, username):

@@ -10,9 +10,7 @@ def send(sock, data):
     serialized_data = pickle.dumps(data)
     length = len(serialized_data)
     data_to_send = str(length).encode() + '!'.encode() + serialized_data
-    print(f'sending : {data_to_send}, type {type(data_to_send)}')
     sock.send(data_to_send)
-    print('stam mashehu')
 
 
 

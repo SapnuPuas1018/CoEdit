@@ -1,6 +1,11 @@
+import tkinter
+from os import access
+
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
-from datetime import datetime, timedelta
+from datetime import datetime
+
+from file_access import FileAccess
 
 from file import File
 from request import Request
@@ -25,56 +30,28 @@ class FileManagerApp(ctk.CTk):
 
     def load_files(self):
         '''Receives the files from server - database as a list[File] object'''
-        print('Requesting file list from server...')
+        # print('Requesting file list from server...')
 
         file_objects = self.client.get_response_nowait()
-        print(f'file_objects : {file_objects}')
-        # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
+        # print(f'file_objects : {file_objects}')
+         # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
         print(type(file_objects))
         print(file_objects)
-
-
-        # file_objects = Request('', [
-        #     File(1,"notes", "Meeting notes from team sync", "alice"),
-        #     File(2,"presentation", "<slide1><slide2>",  "bob", datetime.now() - timedelta(days=2)),
-        #     File(3,"report", "Q1 financial data",  "charlie", datetime.now() - timedelta(days=30)),
-        #     File(4,"script", "print('Hello, world!')",  "david"),
-        #     File(5,"todo", "- Buy milk\n- Send email",  "alice", datetime.now() - timedelta(hours=5)),
-        #     File(6,"data", "name,age\nJohn,23\nLisa,29", "eve"),
-        #     File(7,"design", "<svg>...</svg>", "svg",  datetime.now() - timedelta(days=10)),
-        #     File(8,"resume", "Education: ...", "docx",  datetime.now() - timedelta(weeks=3)),
-        #     File(9,"summary", "Key takeaways from the project",  "hannah"),
-        #     File(10,"diagram", "(A)-->[B]", "drawio", datetime.now() - timedelta(days=1)),
-        # ])
 
         if file_objects is not None:
             self.file_list = file_objects.data
             self.filtered_files = self.file_list.copy()
-
-        # if not file_objects:
-        #     print("user does not have any files")
-        #     self.files_data = []
-        #     self.filtered_files = []
-        # else:
-        #     print(f"Received files: {file_objects}")
-        #     self.files_data = [{
-        #         "name": file.filename,
-        #         "owner": file.owner,
-        #         "date": file.creation_date.strftime("%Y-%m-%d"),
-        #         "object": file  # Keep reference to the original File object
-        #     } for file in file_objects.data]
-        #     self.filtered_files = self.files_data.copy()
 
         self.display_files()
 
     def refresh_files(self):
         '''Receives the files from server - database as a list[File] object'''
         pass
-        print('Requesting file list from server...')
+        # print('Requesting file list from server...')
         self.client.send_request(Request('refresh-files', self.my_user))
 
         file_objects = self.client.get_response_nowait()
-        print(f'file_objects : {file_objects}')
+        # print(f'file_objects : {file_objects}')
         # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
         print(type(file_objects))
 
@@ -150,20 +127,90 @@ class FileManagerApp(ctk.CTk):
             self.filtered_files.sort(key=lambda x: x.creation_date.date(), reverse=True)
         self.display_files()
 
+
+
+    # todo: be able to delete file only if im the file owner,
+    #  be able to delete only for me only if im not owner and remove my read access for this file in database,
+    #  rename the file will rename it in database,
+    #  manage access will only accessible to owner return all the users that have an access to this file
     def show_actions(self, file):
-        action = messagebox.askquestion("File Actions",
-                                        f"What would you like to do with '{file.filename}'?\nYes: Rename\nNo: Delete",
-                                        icon='question')
-        if action == 'yes':
-            new_name = simpledialog.askstring("Rename File", "Enter new name:", initialvalue=file.filename)
-            if new_name:
-                file.filename = new_name
-        elif action == 'no':
-            if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{file.filename}'?"):
-                # self.files_data.remove(file)
-                # do later
-                pass
-        self.search_files()
+        menu = tkinter.Menu(self, tearoff=0)
+
+        menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
+        menu.add_command(label="🗑️ Delete File", command=lambda: self.delete_file(file))
+        menu.add_command(label="🗑️ Delete Only For Me", command=lambda: self.delete_file_for_me(file))
+        menu.add_command(label="👥 Manage Access", command=lambda: self.client.send_request(Request("get-access-list", file)))
+
+        menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
+
+    def rename_file(self, file):
+        new_name = simpledialog.askstring("Rename File", "Enter new name:", initialvalue=file.filename)
+        if new_name:
+            self.client.send_request(Request("rename-file", [file, new_name]))
+            file.filename = new_name
+            self.search_files()
+
+    def delete_file(self, file):
+        confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{file.filename}'?")
+        if confirm:
+            self.client.send_request(Request("delete-file", [file, self.my_user]))
+            self.file_list.remove(file)
+            self.search_files()
+
+    def delete_file_for_me(self, file):
+        confirm = messagebox.askyesno("Confirm", f"Remove access to '{file.filename}' just for you?")
+        if confirm:
+            self.client.send_request(Request("delete-file-for-me", [file, self.my_user]))
+            self.file_list.remove(file)
+            self.search_files()
+
+    def manage_access(self, file_accesses: FileAccess):
+        """
+        Display and manage user access (read/write) for a specific file.
+        """
+        print('manage access file_accesses:', file_accesses)
+
+        if not file_accesses or not hasattr(file_accesses, "user_accesses"):
+            messagebox.showerror("Error", "Failed to load access list.")
+            return
+
+        access_window = ctk.CTkToplevel(self)
+        access_window.title(f"Manage Access - {file_accesses.file.filename}")
+        access_window.geometry("400x400")
+
+        ctk.CTkLabel(access_window, text="Username").grid(row=0, column=0, padx=10, pady=5)
+        ctk.CTkLabel(access_window, text="Read").grid(row=0, column=1, padx=10, pady=5)
+        ctk.CTkLabel(access_window, text="Write").grid(row=0, column=2, padx=10, pady=5)
+
+        access_vars = {}
+
+        for i, user_access in enumerate(file_accesses.user_accesses):
+            user = user_access.user
+            username = user.username
+            read_var = ctk.BooleanVar(value=user_access.can_read)
+            write_var = ctk.BooleanVar(value=user_access.can_write)
+
+            ctk.CTkLabel(access_window, text=username).grid(row=i + 1, column=0, padx=10, pady=5)
+            ctk.CTkSwitch(access_window, variable=read_var, onvalue=True, offvalue=False, text="").grid(
+                row=i + 1, column=1, padx=10, pady=5
+            )
+            ctk.CTkSwitch(access_window, variable=write_var, onvalue=True, offvalue=False, text="").grid(
+                row=i + 1, column=2, padx=10, pady=5
+            )
+
+            access_vars[username] = (read_var, write_var)
+
+        def save_changes():
+            updated_access = [
+                {"username": username, "read": read_var.get(), "write": write_var.get()}
+                for username, (read_var, write_var) in access_vars.items()
+            ]
+            self.client.send_request(Request("update-access-table", [file_accesses.file, self.my_user, updated_access]))
+            messagebox.showinfo("Access Updated", "Permissions successfully updated.")
+            access_window.destroy()
+
+        save_btn = ctk.CTkButton(access_window, text="Save Changes", command=save_changes)
+        save_btn.grid(row=len(file_accesses.user_accesses) + 1, columnspan=3, pady=15)
 
     def open_file(self, file): # todo: use instead the already built editor that i have created
         new_window = ctk.CTkToplevel(self)
