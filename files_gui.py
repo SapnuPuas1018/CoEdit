@@ -135,11 +135,12 @@ class FileManagerApp(ctk.CTk):
     #  manage access will only accessible to owner return all the users that have an access to this file
     def show_actions(self, file):
         menu = tkinter.Menu(self, tearoff=0)
-
         menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
-        menu.add_command(label="🗑️ Delete File", command=lambda: self.delete_file(file))
+        # if file.owner != self.my_user.id:
         menu.add_command(label="🗑️ Delete Only For Me", command=lambda: self.delete_file_for_me(file))
+        # if file.owner == self.my_user.id:
         menu.add_command(label="👥 Manage Access", command=lambda: self.client.send_request(Request("get-access-list", file)))
+        menu.add_command(label="🗑️ Delete File", command=lambda: self.delete_file(file))
 
         menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
 
@@ -168,15 +169,13 @@ class FileManagerApp(ctk.CTk):
         """
         Display and manage user access (read/write) for a specific file.
         """
-        print('manage access file_accesses:', file_accesses)
-
         if not file_accesses or not hasattr(file_accesses, "user_accesses"):
             messagebox.showerror("Error", "Failed to load access list.")
             return
 
         access_window = ctk.CTkToplevel(self)
         access_window.title(f"Manage Access - {file_accesses.file.filename}")
-        access_window.geometry("400x400")
+        access_window.geometry("500x600")
 
         ctk.CTkLabel(access_window, text="Username").grid(row=0, column=0, padx=10, pady=5)
         ctk.CTkLabel(access_window, text="Read").grid(row=0, column=1, padx=10, pady=5)
@@ -184,21 +183,69 @@ class FileManagerApp(ctk.CTk):
 
         access_vars = {}
 
-        for i, user_access in enumerate(file_accesses.user_accesses):
-            user = user_access.user
-            username = user.username
-            read_var = ctk.BooleanVar(value=user_access.can_read)
-            write_var = ctk.BooleanVar(value=user_access.can_write)
+        def sync_read_write(read_var, write_var):
+            """
+            Sync the read and write permissions:
+            - If write is turned ON, read must be ON.
+            - If read is turned OFF, write must be OFF.
+            """
+            if not read_var.get():  # If read is off
+                write_var.set(False)  # Turn off write as well
 
-            ctk.CTkLabel(access_window, text=username).grid(row=i + 1, column=0, padx=10, pady=5)
-            ctk.CTkSwitch(access_window, variable=read_var, onvalue=True, offvalue=False, text="").grid(
-                row=i + 1, column=1, padx=10, pady=5
-            )
-            ctk.CTkSwitch(access_window, variable=write_var, onvalue=True, offvalue=False, text="").grid(
-                row=i + 1, column=2, padx=10, pady=5
-            )
+            if write_var.get() and not read_var.get():  # If write is on and read is off
+                read_var.set(True)  # Ensure read is on if write is on
+
+        def create_user_row(username, read_default=True, write_default=False):
+            user_row = len(access_vars) + 1
+
+            read_var = ctk.BooleanVar(value=read_default)
+            write_var = ctk.BooleanVar(value=write_default)
+
+            ctk.CTkLabel(access_window, text=username).grid(row=user_row, column=0, padx=10, pady=5)
+
+            read_switch = ctk.CTkSwitch(access_window, variable=read_var, onvalue=True, offvalue=False, text="")
+            read_switch.grid(row=user_row, column=1, padx=10, pady=5)
+
+            write_switch = ctk.CTkSwitch(access_window, variable=write_var, onvalue=True, offvalue=False, text="")
+            write_switch.grid(row=user_row, column=2, padx=10, pady=5)
+
+            # ➡️ Attach sync behavior
+            def on_read_toggle():
+                sync_read_write(read_var, write_var)
+
+            def on_write_toggle():
+                sync_read_write(read_var, write_var)
+
+            read_switch.configure(command=on_read_toggle)
+            write_switch.configure(command=on_write_toggle)
 
             access_vars[username] = (read_var, write_var)
+
+        for user_access in file_accesses.user_accesses:
+            user = user_access.user
+            create_user_row(user.username, user_access.can_read, user_access.can_write)
+
+        new_user_entry = ctk.CTkEntry(access_window, placeholder_text="New username")
+        add_user_btn = ctk.CTkButton(access_window, text="Add User")
+        save_btn = ctk.CTkButton(access_window, text="Save Changes")
+
+        def add_user():
+            username = new_user_entry.get().strip()
+            if not username:
+                messagebox.showwarning("Input Error", "Please enter a username.")
+                return
+            if username in access_vars:
+                messagebox.showwarning("Already Exists", "User already has access.")
+                return
+
+            create_user_row(username, read_default=True, write_default=False)
+
+            new_row = len(access_vars) + 1
+            new_user_entry.grid(row=new_row, column=0, padx=10, pady=10)
+            add_user_btn.grid(row=new_row, column=1, padx=10, pady=10)
+            save_btn.grid(row=new_row + 1, columnspan=3, pady=15)
+
+            new_user_entry.delete(0, "end")
 
         def save_changes():
             updated_access = [
@@ -209,8 +256,13 @@ class FileManagerApp(ctk.CTk):
             messagebox.showinfo("Access Updated", "Permissions successfully updated.")
             access_window.destroy()
 
-        save_btn = ctk.CTkButton(access_window, text="Save Changes", command=save_changes)
-        save_btn.grid(row=len(file_accesses.user_accesses) + 1, columnspan=3, pady=15)
+        add_user_btn.configure(command=add_user)
+        save_btn.configure(command=save_changes)
+
+        starting_row = len(access_vars) + 1
+        new_user_entry.grid(row=starting_row, column=0, padx=10, pady=10)
+        add_user_btn.grid(row=starting_row, column=1, padx=10, pady=10)
+        save_btn.grid(row=starting_row + 1, columnspan=3, pady=15)
 
     def open_file(self, file): # todo: use instead the already built editor that i have created
         new_window = ctk.CTkToplevel(self)
