@@ -219,9 +219,14 @@ class FileManagerApp(ctk.CTk):
             }
             updated_access.append(access_entry)
 
-        self.client.send_request(Request("update-access-table", [self.file, self.my_user, updated_access]))
-        messagebox.showinfo("Access Updated", "Permissions successfully updated.")
-        self.access_window.destroy()
+        self.client.send_request(Request("update-access-table", [self.file, updated_access]))
+
+    def save_changes_update_response(self, success: bool):
+        if success:
+            messagebox.showinfo("Access Updated", "Permissions successfully updated.")
+            self.access_window.destroy()
+        else:
+            messagebox.showerror("Update Failed", "Failed to update permissions. Try again.")
 
     def manage_access(self, user_access_list: list[UserAccess]):
         if not user_access_list:

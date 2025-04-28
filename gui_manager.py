@@ -68,8 +68,10 @@ class AuthApp(ctk.CTk):
             self.files_gui.manage_access(response.data)
         elif response.request_type == 'user-exists-response':
             self.files_gui.add_user(response.data)
-
-
+        elif response.request_type == 'update-access-response':
+            self.files_gui.save_changes_update_response(response.data)
+        elif response.request_type == 'file-list': # refresh files button
+            self.files_gui.refresh_files(response.data)
     def show_login_page(self):
         self.login_gui.show()
         self.signup_gui.hide()

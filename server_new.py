@@ -68,6 +68,32 @@ class Server:
             self.handle_get_access_list(request, conn)
         elif request.request_type == 'check-user-exists':
             self.handle_check_user_exists(request, conn)
+        elif request.request_type == 'update-access-table':
+            self.handle_update_access_table(request, conn)
+
+    def handle_update_access_table(self, request: Request, conn):
+        file = request.data[0]
+        updated_access = request.data[1]
+
+        try:
+            # Retrieve the current access table for the file
+            for access in updated_access:
+                username = access["username"]
+                can_read = access["read"]
+                can_write = access["write"]
+
+                # Get the user object by username
+                user = self.database.check_if_user_exists_by_username(username)
+                print(user)
+                if user:
+                    # Update the file access for this user
+                    x = self.database.change_file_access(user, file, can_read, can_write)
+                    print('-'*30)
+                    print(x)
+            protocol.send(conn, Request('update-access-response', True))
+        except Exception as e:
+            print(f"Failed to update access table: {e}")
+            protocol.send(conn, Request('update-access-response', False))
 
     def handle_check_user_exists(self, request: Request, conn):
         username = request.data

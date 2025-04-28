@@ -199,13 +199,28 @@ class UserDatabase:
         user_id = self.get_user_id(user.username)
         if user_id is None:
             return False
+
         with self.lock:
-            # Update existing access rights
+            # First, check if an entry already exists
             self.cursor.execute("""
-                UPDATE file_access
-                SET can_read = ?, can_write = ?
-                WHERE user_id = ? AND file_id = ?
-            """, (int(can_read), int(can_write), user_id, file_id))
+                SELECT id FROM file_access WHERE user_id = ? AND file_id = ?
+            """, (user_id, file_id))
+            result = self.cursor.fetchone()
+
+            if result:
+                # Entry exists -> Update
+                self.cursor.execute("""
+                    UPDATE file_access
+                    SET can_read = ?, can_write = ?
+                    WHERE user_id = ? AND file_id = ?
+                """, (int(can_read), int(can_write), user_id, file_id))
+            else:
+                # Entry does not exist -> Insert
+                self.cursor.execute("""
+                    INSERT INTO file_access (user_id, file_id, can_read, can_write)
+                    VALUES (?, ?, ?, ?)
+                """, (user_id, file_id, int(can_read), int(can_write)))
+
             self.conn.commit()
             return True
 
