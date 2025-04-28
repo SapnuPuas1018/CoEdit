@@ -5,7 +5,6 @@ import customtkinter as ctk
 from tkinter import messagebox, simpledialog
 from datetime import datetime
 
-from file_access import FileAccess
 
 from file import File
 from request import Request
@@ -52,9 +51,8 @@ class FileManagerApp(ctk.CTk):
         self.client.send_request(Request('refresh-files', self.my_user))
 
         file_objects = self.client.get_response_nowait()
-        # print(f'file_objects : {file_objects}')
-        # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
-        print(type(file_objects))
+        print('file_objects: ')
+        print(file_objects)
 
         if file_objects is not None:
             self.file_list = file_objects.data

@@ -91,15 +91,15 @@ class Server:
     def get_user_files(self, user: User, conn):
         files: list[File] = self.database.get_readable_files_per_user(user)
 
-        # todo: check if these are unnecessary
-        files_user_can_read = []
-        for file in files:
-            if self.database.can_user_read_file(user, file):
-                files_user_can_read.append(file)
-                files.remove(file)
-        # todo :until here-------------------------------
-        print(file)
-        protocol.send(conn, Request("file-list", files_user_can_read))
+        # # todo: check if these are unnecessary
+        # files_user_can_read = []
+        # for file in files:
+        #     if self.database.can_user_read_file(user, file):
+        #         files_user_can_read.append(file)
+        #         files.remove(file)
+        # # todo :until here-------------------------------
+        print(files)
+        protocol.send(conn, Request("file-list", files))
 
     def handle_add_file(self, request, conn):
         file = request.data[0]

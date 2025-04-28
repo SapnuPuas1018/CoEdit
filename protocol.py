@@ -16,11 +16,8 @@ def send(sock, data):
 
 def recv(sock):
     length_data = b''
-    # print('start length_data')
     while b'!' not in length_data:
         length_data += sock.recv(1)
-        # print(length_data.decode())
-    # print('found !')
     length = int(length_data[:-1])  # Remove '!' and convert to int
 
     # Receive the full message
@@ -32,27 +29,3 @@ def recv(sock):
         received_data += chunk
 
     return pickle.loads(received_data)
-
-if __name__ == '__main__':
-    # Testing the send and recv functions using a socketpair
-    parent_sock, child_sock = socket.socketpair()
-
-    test_data = User('','','jd123', 'securepassword123')
-
-    send(parent_sock,test_data)
-    received_data = recv(child_sock)
-
-    print(type(received_data))
-    print(type(test_data))
-
-    print(received_data)
-    print(test_data)
-    if received_data == test_data:
-        print('passed')
-    else:
-        print('failed')
-    # assert received_data == test_data, "Data integrity check failed!"
-    # print("Test passed: Data integrity verified.")
-
-    parent_sock.close()
-    child_sock.close()

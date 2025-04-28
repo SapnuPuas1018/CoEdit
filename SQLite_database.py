@@ -3,7 +3,6 @@ import threading
 from webbrowser import Error
 
 from file import File
-from file_access import FileAccess
 from user import User
 from user_access import UserAccess
 
@@ -124,11 +123,9 @@ class UserDatabase:
             return result[0] if result else None
 
     def can_user_read_file(self, user: User, file: File) -> bool:
-        user_id = self.get_user_id(user.username)
-        file_id = file.file_id
         with self.lock:
             self.cursor.execute(
-                "SELECT can_read FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
+                "SELECT can_read FROM file_access WHERE user_id=? AND file_id=?", (user.user_id, file.file_id)
             )
             result = self.cursor.fetchone()
             return result[0] if result else False
