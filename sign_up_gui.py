@@ -53,10 +53,11 @@ class SignUpGui:
             messagebox.showerror("Error", "Passwords do not match")
             return
 
-        signup_result = User(first_name, last_name, username, password)
+        signup_result = User('', first_name, last_name, username, password)
         print(signup_result)
 
         self.client.send_request(Request('signup', signup_result))
+        # self.gui_manager.change_state()
 
     def show(self):
         self.signup_frame.pack()

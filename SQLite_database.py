@@ -1,9 +1,9 @@
 import sqlite3
 import threading
-
-from file_access import FileAccess
+from webbrowser import Error
 
 from file import File
+from file_access import FileAccess
 from user import User
 from user_access import UserAccess
 
@@ -52,7 +52,7 @@ class UserDatabase:
             """)
             self.conn.commit()
 
-    def add_user(self, user):
+    def add_user(self, user: User):
         """Add a new user to the database."""
         with self.lock:
             try:
@@ -61,15 +61,17 @@ class UserDatabase:
                     (user.first_name, user.last_name, user.username, user.password),
                 )
                 self.conn.commit()
-                return True, "User added successfully."
+                # user_id = self.cursor.lastrowid
+                return True
             except sqlite3.IntegrityError:
-                return False, "Username already exists."
+                return False
 
-    def verify_user(self, user):
+    def verify_user(self, user: User):
         """Verify user login credentials."""
+        user_id = self.get_user_id(user.username)
         with self.lock:
-            self.cursor.execute("SELECT id FROM users WHERE username=? AND password=?", (user.username, user.password))
-            return self.cursor.fetchone() is not None
+            self.cursor.execute("SELECT id FROM users WHERE id=? AND password=?", (user_id, user.password))
+            return self.cursor.fetchone() is not None, user_id
 
     # def user_exists(self, username):
     #     """Check if a user exists in the database."""
@@ -77,7 +79,7 @@ class UserDatabase:
     #         self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
     #         return self.cursor.fetchone() is not None
 
-    def add_file(self, user, file: File, content):
+    def add_file(self, user: User, file: File, content):
         """Add a file for a user."""
         owner_id = self.get_user_id(user.username)
         if owner_id:
@@ -87,10 +89,12 @@ class UserDatabase:
                     (file.file_id, owner_id, file.filename, content),
                 )
                 self.conn.commit()
+                print(f"File '{file.filename}' added successfully.")
                 return True, f"File '{file.filename}' added successfully."
+
         return False, "User not found."
 
-    def get_file_content(self, user, filename):
+    def get_file_content(self, user: User, filename):
         """Retrieve the content of a specific file."""
         owner_id = self.get_user_id(user.username)
         if owner_id:
@@ -140,16 +144,15 @@ class UserDatabase:
             result = self.cursor.fetchone()
             return result[0] if result else False
 
-    def get_readable_files_per_user(self, user):
+    def get_readable_files_per_user(self, user: User) -> list[File]:
         """Retrieve all files the user has read access to as File objects."""
-        user_id = self.get_user_id(user.username)
         with self.lock:
             self.cursor.execute("""
                 SELECT f.id, f.filename, f.content, f.owner_id, f.creation_date
                 FROM files f
                 JOIN file_access fa ON f.id = fa.file_id
                 WHERE fa.user_id = ? AND fa.can_read = 1
-            """, (user_id,))
+            """, (user.user_id,))
 
             rows = self.cursor.fetchall()
             readable_files = []
@@ -196,9 +199,9 @@ class UserDatabase:
             self.conn.commit()
             return True
 
-    def get_users_with_access_to_file(self, file: File) -> FileAccess:
+    def get_users_with_access_to_file(self, file: File) -> list[UserAccess]:
         """
-        Retrieve a FileAccess object for a specific file, including all users who have access to it.
+        Retrieve a list of UserAccess objects for a specific file, including all users who have access to it.
         """
         with self.lock:
             self.cursor.execute("""
@@ -212,15 +215,19 @@ class UserDatabase:
             user_accesses = []
 
             for row in rows:
-                user_id, first_name, last_name, username, can_read, can_write = row
+                user_id = row[0]
+                first_name = row[1]
+                last_name = row[2]
+                username = row[3]
+                can_read = row[4]
+                can_write = row[5]
 
-                user = User(first_name=first_name, last_name=last_name, username=username, password="")
-                user.id = user_id
+                user = User(user_id, first_name=first_name, last_name=last_name, username=username, password='')
 
-                user_access = UserAccess(user=user, can_read=bool(can_read), can_write=bool(can_write))
+                user_access = UserAccess(file= file, user=user, can_read=bool(can_read), can_write=bool(can_write))
                 user_accesses.append(user_access)
 
-            return FileAccess(file=file, user_accesses=user_accesses)
+            return user_accesses
 
     def rename_file(self, file: File, new_filename: str) -> bool:
         """Rename a file using its file ID."""
@@ -247,15 +254,15 @@ class UserDatabase:
 
 
 # Example Usage
-if __name__ == "__main__":
-    db = UserDatabase()
-
-    user = User("John", "Doe", "jd123", "securepassword123")
-    print(db.add_user(user))
-    print(db.get_user_full_name("jd123"))
-    print(db.add_file(user, "notes.txt", 'context in file'))
-    print(db.get_files(user))
-    print(db.get_file_content(user, "notes.txt"))
-    print(db.remove_file("jd123", "notes.txt"))
-    print(db.get_files(user))
-    db.close()
+# if __name__ == "__main__":
+    # db = UserDatabase()
+    #
+    # user = User("John", "Doe", "jd123", "securepassword123")
+    # print(db.add_user(user))
+    # print(db.get_user_full_name("jd123"))
+    # print(db.add_file(user, "notes.txt", 'context in file'))
+    # print(db.get_files(user))
+    # print(db.get_file_content(user, "notes.txt"))
+    # print(db.remove_file("jd123", "notes.txt"))
+    # print(db.get_files(user))
+    # db.close()

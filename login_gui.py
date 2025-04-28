@@ -33,7 +33,7 @@ class LoginGui:
             messagebox.showerror("Error", "All fields must be filled out")
             return
 
-        login_user = User('', '', username, password)
+        login_user = User('','', '', username, password)
         print(login_user)
         self.client.send_request(Request('login', login_user))
 

@@ -1,8 +1,9 @@
 
 
 class User:
-    def __init__(self, first_name, last_name,username: str, password: str):
+    def __init__(self, user_id, first_name, last_name,username: str, password: str):
         """Initialize a user with a name, password, and an empty list of files."""
+        self.user_id = user_id
         self.first_name = first_name
         self.last_name = last_name
         self.username = username
@@ -36,7 +37,7 @@ class User:
         return self.password == password  # In real cases, use hashing!
 
     def __repr__(self):
-        return f'first name : {self.first_name}, last name : {self.last_name}, username : {self.username}, password : {self.password}, files names : {self.list_files()}'
+        return f'user_id: {self.user_id}, first name : {self.first_name}, last name : {self.last_name}, username : {self.username}, password : {self.password}, files names : {self.list_files()}'
 
 if __name__ == '__main__':
 # Example usage:

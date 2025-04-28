@@ -9,6 +9,7 @@ from file_access import FileAccess
 
 from file import File
 from request import Request
+from user_access import UserAccess
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -134,6 +135,7 @@ class FileManagerApp(ctk.CTk):
     #  rename the file will rename it in database,
     #  manage access will only accessible to owner return all the users that have an access to this file
     def show_actions(self, file):
+        print(self.my_user)
         menu = tkinter.Menu(self, tearoff=0)
         menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
         # if file.owner != self.my_user.id:
@@ -165,16 +167,18 @@ class FileManagerApp(ctk.CTk):
             self.file_list.remove(file)
             self.search_files()
 
-    def manage_access(self, file_accesses: FileAccess):
+    def manage_access(self, user_access_list: list[UserAccess]):
         """
         Display and manage user access (read/write) for a specific file.
         """
-        if not file_accesses or not hasattr(file_accesses, "user_accesses"):
+        if not user_access_list:
             messagebox.showerror("Error", "Failed to load access list.")
             return
 
+        file = user_access_list[0].file  # All UserAccess refer to the same file
+
         access_window = ctk.CTkToplevel(self)
-        access_window.title(f"Manage Access - {file_accesses.file.filename}")
+        access_window.title(f"Manage Access - {file.filename}")
         access_window.geometry("500x600")
 
         ctk.CTkLabel(access_window, text="Username").grid(row=0, column=0, padx=10, pady=5)
@@ -189,11 +193,10 @@ class FileManagerApp(ctk.CTk):
             - If write is turned ON, read must be ON.
             - If read is turned OFF, write must be OFF.
             """
-            if not read_var.get():  # If read is off
-                write_var.set(False)  # Turn off write as well
-
-            if write_var.get() and not read_var.get():  # If write is on and read is off
-                read_var.set(True)  # Ensure read is on if write is on
+            if not read_var.get():
+                write_var.set(False)
+            if write_var.get() and not read_var.get():
+                read_var.set(True)
 
         def create_user_row(username, read_default=True, write_default=False):
             user_row = len(access_vars) + 1
@@ -203,13 +206,12 @@ class FileManagerApp(ctk.CTk):
 
             ctk.CTkLabel(access_window, text=username).grid(row=user_row, column=0, padx=10, pady=5)
 
-            read_switch = ctk.CTkSwitch(access_window, variable=read_var, onvalue=True, offvalue=False, text="")
+            read_switch = ctk.CTkSwitch(access_window, variable=read_var, text="")
             read_switch.grid(row=user_row, column=1, padx=10, pady=5)
 
-            write_switch = ctk.CTkSwitch(access_window, variable=write_var, onvalue=True, offvalue=False, text="")
+            write_switch = ctk.CTkSwitch(access_window, variable=write_var, text="")
             write_switch.grid(row=user_row, column=2, padx=10, pady=5)
 
-            # ➡️ Attach sync behavior
             def on_read_toggle():
                 sync_read_write(read_var, write_var)
 
@@ -221,9 +223,9 @@ class FileManagerApp(ctk.CTk):
 
             access_vars[username] = (read_var, write_var)
 
-        for user_access in file_accesses.user_accesses:
-            user = user_access.user
-            create_user_row(user.username, user_access.can_read, user_access.can_write)
+        # ➡️ Create rows for existing user accesses
+        for user_access in user_access_list:
+            create_user_row(user_access.user.username, user_access.can_read, user_access.can_write)
 
         new_user_entry = ctk.CTkEntry(access_window, placeholder_text="New username")
         add_user_btn = ctk.CTkButton(access_window, text="Add User")
@@ -248,11 +250,16 @@ class FileManagerApp(ctk.CTk):
             new_user_entry.delete(0, "end")
 
         def save_changes():
-            updated_access = [
-                {"username": username, "read": read_var.get(), "write": write_var.get()}
-                for username, (read_var, write_var) in access_vars.items()
-            ]
-            self.client.send_request(Request("update-access-table", [file_accesses.file, self.my_user, updated_access]))
+            updated_access = []
+            for username, (read_var, write_var) in access_vars.items():
+                access_entry = {
+                    "username": username,
+                    "read": read_var.get(),
+                    "write": write_var.get()
+                }
+                updated_access.append(access_entry)
+
+            self.client.send_request(Request("update-access-table", [file, self.my_user, updated_access]))
             messagebox.showinfo("Access Updated", "Permissions successfully updated.")
             access_window.destroy()
 

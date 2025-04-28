@@ -1,4 +1,3 @@
-
 import socket
 import ssl
 from threading import Thread
@@ -33,10 +32,9 @@ class Server:
         while True:
             conn, addr = self.s_sock.accept()
             print(f'received a connection from {conn}, {addr}')
-            thread = Thread(target=self.listen, args=(conn, ))
+            thread = Thread(target=self.listen, args=(conn,))
             thread.start()
             self.thread_list.append(thread)
-
 
     def listen(self, conn):
         try:
@@ -47,8 +45,7 @@ class Server:
         except socket.error as sock_err:
             print(sock_err)
         finally:
-            conn.close()    # todo check if it actually closes the connection
-
+            conn.close()  # todo check if it actually closes the connection
 
     def handle_request(self, request: Request, conn):
         print(f"received from client : {request}")
@@ -70,30 +67,26 @@ class Server:
         elif request.request_type == 'get-access-list':
             self.handle_get_access_list(request, conn)
 
-
-
     def handle_get_access_list(self, request: Request, conn):
         file: File = request.data
         file_accesses = self.database.get_users_with_access_to_file(file)
         protocol.send(conn, Request('file-access', file_accesses))
 
-
     def handle_signup(self, request: Request, conn):
         user: User = request.data
         print(type(user))
         print(user)
-        already_exists, message = self.database.add_user(user)
+        already_exists = self.database.add_user(user)
         protocol.send(conn, Request('signup-success', already_exists))
-        print(message)
 
     def handle_login(self, request: Request, conn):
         user: User = request.data
-        success = self.database.verify_user(user)
+        success, user_id = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
+        user.user_id = user_id
         protocol.send(conn, Request('login-success', [success, user]))
         if success:
             self.get_user_files(user, conn)
-
 
     def get_user_files(self, user: User, conn):
         files: list[File] = self.database.get_readable_files_per_user(user)
@@ -105,9 +98,8 @@ class Server:
                 files_user_can_read.append(file)
                 files.remove(file)
         # todo :until here-------------------------------
-
+        print(file)
         protocol.send(conn, Request("file-list", files_user_can_read))
-
 
     def handle_add_file(self, request, conn):
         file = request.data[0]
@@ -126,7 +118,6 @@ class Server:
         else:
             print('file was not updated successfully)')
 
-        
 
 if __name__ == "__main__":
     server = Server()

@@ -1,14 +1,9 @@
+from file import File
 from user import User
 
 class UserAccess:
-    def __init__(self, user: User, can_read=False, can_write=False):
-        """
-        Represents access permissions of a user to a specific file.
-
-        :param user: The User object
-        :param can_read: Boolean indicating if the user has read access
-        :param can_write: Boolean indicating if the user has write access
-        """
+    def __init__(self, file:File, user: User, can_read=False, can_write=False):
+        self.file = file
         self.user = user
         self.can_read = can_read
         self.can_write = can_write
