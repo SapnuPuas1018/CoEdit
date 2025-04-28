@@ -45,18 +45,16 @@ class FileManagerApp(ctk.CTk):
 
         self.display_files()
 
-    def refresh_files(self):
+    def refresh_files(self, files):
         '''Receives the files from server - database as a list[File] object'''
         pass
-        # print('Requesting file list from server...')
-        self.client.send_request(Request('refresh-files', self.my_user))
 
-        file_objects = self.client.get_response_nowait()
+        file_objects = files
         print('file_objects: ')
         print(file_objects)
 
         if file_objects is not None:
-            self.file_list = file_objects.data
+            self.file_list = file_objects
             self.filtered_files = self.file_list.copy()
 
         self.display_files()
@@ -88,7 +86,12 @@ class FileManagerApp(ctk.CTk):
         self.add_file_btn.pack(side="left", padx=10)
 
         # Refresh button with Unicode icon
-        self.refresh_btn = ctk.CTkButton(top_bar, text="↻", width=40, command=self.refresh_files)
+        self.refresh_btn = ctk.CTkButton(
+            top_bar,
+            text="↻",
+            width=40,
+            command=lambda: self.client.send_request(Request('refresh-files', self.my_user))
+        )
         self.refresh_btn.pack(side="left", padx=5)
 
         self.sort_by = ctk.CTkOptionMenu(top_bar, values=["Name", "Owner", "Date"], command=self.sort_files)
