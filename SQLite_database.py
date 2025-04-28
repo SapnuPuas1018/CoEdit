@@ -122,6 +122,19 @@ class UserDatabase:
             result = self.cursor.fetchone()
             return result[0] if result else None
 
+    def check_if_user_exists_by_username(self, username: str):
+        self.cursor.execute("""
+            SELECT id, first_name, last_name, username, password
+            FROM users
+            WHERE username = ?
+        """, (username,))
+        row = self.cursor.fetchone()
+        if row:
+            user_id, first_name, last_name, username, password = row
+            return User(user_id, first_name, last_name, username, password)
+        else:
+            return None
+
     def can_user_read_file(self, user: User, file: File) -> bool:
         with self.lock:
             self.cursor.execute(

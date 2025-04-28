@@ -66,6 +66,14 @@ class Server:
             pass
         elif request.request_type == 'get-access-list':
             self.handle_get_access_list(request, conn)
+        elif request.request_type == 'check-user-exists':
+            self.handle_check_user_exists(request, conn)
+
+    def handle_check_user_exists(self, request: Request, conn):
+        username = request.data
+        user = self.database.check_if_user_exists_by_username(username) # returns None if not found
+        protocol.send(conn, Request('user-exists-response', user))
+
 
     def handle_get_access_list(self, request: Request, conn):
         file: File = request.data

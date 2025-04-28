@@ -50,7 +50,7 @@ class AuthApp(ctk.CTk):
             self.handle_response_change_state(response)
         self.after(100, self.poll_client_response)  # Schedule next poll
 
-    def handle_response_change_state(self, response):
+    def handle_response_change_state(self, response: Request):
         print(response.request_type)
         print(response.data)
         if response.request_type == 'signup-success' and response.data:
@@ -66,6 +66,8 @@ class AuthApp(ctk.CTk):
         elif response.request_type == 'file-access':
             print('response file access type' + str(type(response.data)))
             self.files_gui.manage_access(response.data)
+        elif response.request_type == 'user-exists-response':
+            self.files_gui.add_user(response.data)
 
 
     def show_login_page(self):
