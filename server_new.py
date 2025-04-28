@@ -124,14 +124,6 @@ class Server:
 
     def get_user_files(self, user: User, conn):
         files: list[File] = self.database.get_readable_files_per_user(user)
-
-        # # todo: check if these are unnecessary
-        # files_user_can_read = []
-        # for file in files:
-        #     if self.database.can_user_read_file(user, file):
-        #         files_user_can_read.append(file)
-        #         files.remove(file)
-        # # todo :until here-------------------------------
         print(files)
         protocol.send(conn, Request("file-list", files))
 
@@ -150,7 +142,7 @@ class Server:
         if success:  # todo: check if necessary to check successfulness and send back the success result
             print('file was updated successfully')
         else:
-            print('file was not updated successfully)')
+            print('file was not updated successfully')
 
 
 if __name__ == "__main__":

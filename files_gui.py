@@ -1,5 +1,4 @@
 import tkinter
-from os import access
 
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
@@ -7,6 +6,7 @@ from datetime import datetime
 
 
 from file import File
+from file_editor import FileEditor
 from request import Request
 from user import User
 from user_access import UserAccess
@@ -47,8 +47,6 @@ class FileManagerApp(ctk.CTk):
 
     def refresh_files(self, files):
         '''Receives the files from server - database as a list[File] object'''
-        pass
-
         file_objects = files
         print('file_objects: ')
         print(file_objects)
@@ -268,15 +266,11 @@ class FileManagerApp(ctk.CTk):
         self.add_user_btn.grid(row=starting_row, column=1, padx=10, pady=10)
         self.save_btn.grid(row=starting_row + 1, columnspan=3, pady=15)
 
-    def open_file(self, file): # todo: use instead the already built editor that i have created
-        new_window = ctk.CTkToplevel(self)
-        new_window.title(file.filename)
-        new_window.geometry("600x400")
-        ctk.CTkLabel(new_window, text= f"{file.filename}", font= ("Arial", 16)).pack(pady=10)
-
-        content_box = ctk.CTkTextbox(new_window, wrap="word", width=550, height=300)
-        content_box.insert("1.0", file.content)
-        content_box.pack(padx=20, pady=10)
+    def open_file(self, file):
+        editor_window = FileEditor()  # <-- Parent window
+        editor_window.title(file.filename)
+        editor_window.text_area.delete("1.0", "end")
+        editor_window.text_area.insert("1.0", file.content)
 
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")

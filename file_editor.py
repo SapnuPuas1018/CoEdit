@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 
-class NotepadApp(ctk.CTk):
+class FileEditor(ctk.CTkToplevel):
     def __init__(self):
         super().__init__()
         self.title("CoEdit")
@@ -68,5 +68,5 @@ class NotepadApp(ctk.CTk):
 
 
 if __name__ == "__main__":
-    app = NotepadApp()
+    app = FileEditor()
     app.mainloop()
