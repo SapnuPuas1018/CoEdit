@@ -1,9 +1,5 @@
-import threading
-from tkinter.messagebox import showerror
-
 import customtkinter as ctk
 
-import protocol
 from files_gui import FileManagerApp
 from login_gui import LoginGui
 from request import Request
@@ -39,10 +35,6 @@ class AuthApp(ctk.CTk):
         self.poll_client_response()
 
 
-        # self.next_state = {"signup": {"signup success": "login", "signup failed": "signup"}
-        #     , "login": {"login success": "files screen", "login failed": "login"},
-        #                    "files screen": {"files logout": "signup"}}
-
     def poll_client_response(self):
         """Check for new responses every 100ms."""
         response = self.client.get_response_nowait()
@@ -62,7 +54,12 @@ class AuthApp(ctk.CTk):
             self.files_gui.load_files()
             self.files_gui.my_user = self.my_user
         elif response.request_type == 'add-file-success':
-            file = response.data
+            if not response.data[0]:
+                self.files_gui.add_file_refresh(False, None)
+            else:
+                self.files_gui.add_file_refresh(True, response.data[1])
+        elif response.request_type == 'rename-file-success':
+            self.files_gui.rename_file_success(response.data)
         elif response.request_type == 'file-access':
             print('response file access type' + str(type(response.data)))
             self.files_gui.manage_access(response.data)

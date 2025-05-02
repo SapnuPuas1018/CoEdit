@@ -66,7 +66,7 @@ class Server:
             pass
         elif request.request_type == "open-file":
             self.open_file(request.data[0], request.data[1], conn)
-            print('nigger')
+            print('Opening file...')
         elif request.request_type == 'get-access-list':
             self.handle_get_access_list(request, conn)
         elif request.request_type == 'check-user-exists':
@@ -134,22 +134,40 @@ class Server:
         print(files)
         protocol.send(conn, Request("file-list", files))
 
+    # def handle_add_file(self, request, conn):
+    #     file = request.data[0]
+    #     user = request.data[1]
+    #     # add file access to owner/user
+    #     success_add_file = self.database.add_file(user, file, '')
+    #     success_add_access = self.database.add_file_access(user, file, True, True)
+    #     if success_add_file and success_add_access:
+    #         protocol.send(conn, Request('add-file-success', [True, file]))
+    #     else:
+    #         protocol.send(conn, Request('add-file-success', False))
+
     def handle_add_file(self, request, conn):
-        file = request.data[0]
-        user = request.data[1]
-        #   add file access to owner/user
-        self.database.add_file(user, file, '')
-        self.database.add_file_access(user, file, True, True)
+        file = request.data[0]  # File object
+        user = request.data[1]  # User object
+
+        success_add_file = self.database.add_file(user, file, '')
+        success_add_access = False
+
+        if success_add_file:
+            success_add_access = self.database.add_file_access(user, file, True, True)
+
+        if success_add_file and success_add_access:
+            protocol.send(conn, Request('add-file-success', [True, file]))
+        else:
+            self.database.remove_file(user.user_id, file.file_id)
+            protocol.send(conn, Request('add-file-success', [False, ]))
 
     def handle_file_rename(self, request: Request, conn):
         file = request.data[0]
         new_name = request.data[1]
         success = self.database.rename_file(file, new_name)
 
-        if success:  # todo: check if necessary to check successfulness and send back the success result
-            print('file was updated successfully')
-        else:
-            print('file was not updated successfully')
+        # todo: check if necessary to check successfulness and send back the success result
+        protocol.send(conn, Request('rename-file-success', success))
 
 
 if __name__ == "__main__":

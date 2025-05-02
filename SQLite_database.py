@@ -72,12 +72,6 @@ class UserDatabase:
             self.cursor.execute("SELECT id FROM users WHERE id=? AND password=?", (user_id, user.password))
             return self.cursor.fetchone() is not None, user_id
 
-    # def user_exists(self, username):
-    #     """Check if a user exists in the database."""
-    #     with self.lock:
-    #         self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
-    #         return self.cursor.fetchone() is not None
-
     def add_file(self, user: User, file: File, content: str):
         """Save file content to disk and record its path in the database."""
 
@@ -136,6 +130,24 @@ class UserDatabase:
                 return None
         return None
 
+    def save_file_content(self, user: User, file: File, content: str) -> bool:
+        if not self.can_user_write(user, file):
+            return False
+
+        with self.lock:
+            self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
+            result = self.cursor.fetchone()
+            if result:
+                path = result[0]
+                try:
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    return True
+                except Exception as e:
+                    print("Error writing file:", e)
+                    return False
+        return False
+
     def get_file_path(self, user: User, filename):
         """Retrieve the file path instead of content."""
         owner_id = self.get_user_id(user.username)
@@ -148,15 +160,27 @@ class UserDatabase:
                 return result[0] if result else None
         return None
 
-    def remove_file(self, username, filename):
-        """Delete a file from the database."""
-        owner_id = self.get_user_id(username)
-        if owner_id:
-            with self.lock:
-                self.cursor.execute("DELETE FROM files WHERE owner_id=? AND filename=?", (owner_id, filename))
+    def remove_file(self, user_id, file_id):
+        """Delete a file from the database and disk using file_id and user_id."""
+        with self.lock:
+            # Confirm the file belongs to the user
+            self.cursor.execute("SELECT path FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
+            result = self.cursor.fetchone()
+
+            if result:
+                path = result[0]
+                # Delete from disk
+                if os.path.exists(path):
+                    try:
+                        os.remove(path)
+                    except Exception as e:
+                        print(f"Warning: Failed to delete file from disk: {e}")
+
+                # Delete file entry and associated access
+                self.cursor.execute("DELETE FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
                 self.conn.commit()
-                return True, f"File '{filename}' removed successfully."
-        return False, "User not found."
+                return True, f"File '{file_id}' removed successfully."
+        return False, "File not found or access denied."
 
     def get_user_id(self, username):
         """Retrieve user ID from username."""
@@ -187,15 +211,32 @@ class UserDatabase:
             return result[0] if result else False
 
 
-    def can_user_write_file(self, user: User, file: File) -> bool:
-        user_id = self.get_user_id(user.username)
-        file_id = file.file_id
+    # def can_user_write_file(self, user: User, file: File) -> bool:
+    #     user_id = self.get_user_id(user.username)
+    #     file_id = file.file_id
+    #     with self.lock:
+    #         self.cursor.execute(
+    #             "SELECT can_write FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
+    #         )
+    #         result = self.cursor.fetchone()
+    #         return result[0] if result else False
+
+    def can_user_write(self, user: User, file: File) -> bool:
         with self.lock:
-            self.cursor.execute(
-                "SELECT can_write FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
-            )
+            self.cursor.execute("""
+                SELECT 1 FROM files 
+                WHERE id = ? AND owner_id = (SELECT id FROM users WHERE username = ?)
+            """, (file.file_id, user.username))
+            if self.cursor.fetchone():
+                return True
+            self.cursor.execute("""
+                SELECT can_write FROM file_access 
+                JOIN users ON file_access.user_id = users.id 
+                WHERE users.username = ? AND file_access.file_id = ?
+            """, (user.username, file.file_id))
             result = self.cursor.fetchone()
-            return result[0] if result else False
+            return bool(result and result[0])
+
 
     def get_readable_files_per_user(self, user: User) -> list[File]:
         """Retrieve all files the user has read access to as File objects (without loading content)."""
@@ -297,16 +338,42 @@ class UserDatabase:
 
             return user_accesses
 
-    def rename_file(self, file: File, new_filename: str) -> bool:
-        """Rename a file using its file ID."""
-        with self.lock:
-            self.cursor.execute(
-                "UPDATE files SET filename = ? WHERE id = ?",
-                (new_filename, file.file_id)
-            )
-            self.conn.commit()
-            return self.cursor.rowcount > 0  # True if a row was updated
+    # def rename_file(self, file: File, new_filename: str) -> bool:
+    #     """Rename a file using its file ID."""
+    #     with self.lock:
+    #         self.cursor.execute(
+    #             "UPDATE files SET filename = ? WHERE id = ?",
+    #             (new_filename, file.file_id)
+    #         )
+    #         self.conn.commit()
+    #         return self.cursor.rowcount > 0  # True if a row was updated
 
+    def rename_file(self, file: File, new_filename: str) -> bool:
+        """Rename a file by updating both the filename on disk and in the database."""
+        with self.lock:
+            # Get current file path
+            self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
+            result = self.cursor.fetchone()
+            if not result:
+                return False  # File not found in DB
+
+            old_path = result[0]
+            new_path = os.path.join(os.path.dirname(old_path), new_filename)
+
+            try:
+                # Rename the file on disk
+                os.rename(old_path, new_path)
+
+                # Update database: filename and path
+                self.cursor.execute(
+                    "UPDATE files SET filename = ?, path = ? WHERE id = ?",
+                    (new_filename, new_path, file.file_id)
+                )
+                self.conn.commit()
+                return True
+            except Exception as e:
+                print(f"Error renaming file: {e}")
+                return False
 
     def get_user_full_name(self, username):
         """Retrieve the full name of a user."""
@@ -319,18 +386,3 @@ class UserDatabase:
         """Close the database connection."""
         with self.lock:
             self.conn.close()
-
-
-# Example Usage
-# if __name__ == "__main__":
-    # db = UserDatabase()
-    #
-    # user = User("John", "Doe", "jd123", "securepassword123")
-    # print(db.add_user(user))
-    # print(db.get_user_full_name("jd123"))
-    # print(db.add_file(user, "notes.txt", 'context in file'))
-    # print(db.get_files(user))
-    # print(db.get_file_content(user, "notes.txt"))
-    # print(db.remove_file("jd123", "notes.txt"))
-    # print(db.get_files(user))
-    # db.close()

@@ -1,5 +1,6 @@
 import os
 import tkinter
+from types import new_class
 
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
@@ -139,11 +140,11 @@ class FileManagerApp(ctk.CTk):
         print(self.my_user)
         menu = tkinter.Menu(self, tearoff=0)
         menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
-        # if file.owner != self.my_user.user_id:
-        menu.add_command(label="🗑️ Delete Only For Me", command=lambda: self.delete_file_for_me(file))
-        # if file.owner == self.my_user.user_id:
-        menu.add_command(label="👥 Manage Access", command=lambda: self.client.send_request(Request("get-access-list", file)))
-        menu.add_command(label="🗑️ Delete File", command=lambda: self.delete_file(file))
+        if file.owner != self.my_user.user_id:
+            menu.add_command(label="🗑️ Delete For Me", command=lambda: self.delete_file_for_me(file))
+        if file.owner == self.my_user.user_id:
+            menu.add_command(label="👥 Manage Access", command=lambda: self.client.send_request(Request("get-access-list", file)))
+            menu.add_command(label="🗑️ Delete File", command=lambda: self.delete_file(file))
 
         menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
 
@@ -151,8 +152,14 @@ class FileManagerApp(ctk.CTk):
         new_name = simpledialog.askstring("Rename File", "Enter new name:", initialvalue=file.filename)
         if new_name:
             self.client.send_request(Request("rename-file", [file, new_name]))
-            file.filename = new_name
-            self.search_files()
+
+    def rename_file_success(self, success_rename: bool):
+        if success_rename:
+            messagebox.showinfo("rename", 'rename was successful')
+        else:
+            messagebox.showerror("rename", 'rename was unsuccessful')
+        #     file.filename = new_name
+        self.search_files()
 
     def delete_file(self, file):
         confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{file.filename}'?")
@@ -276,18 +283,6 @@ class FileManagerApp(ctk.CTk):
         else:
             messagebox.showinfo("no permission", "you dont have permissions for this file")
 
-
-
-    # def add_file(self):
-    #     new_name = simpledialog.askstring("New File", "Enter file name:")
-    #     if new_name:
-    #         new_file = File(filename= new_name, owner= self.my_user.username, creation_date= datetime.now().strftime("%Y-%m-%d"))
-    #
-    #         self.client.send_request(Request("add-file", [new_file, self.my_user]))
-    #
-    #         self.file_list.append(new_file)
-    #         self.search_files()
-
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
@@ -305,12 +300,17 @@ class FileManagerApp(ctk.CTk):
             # Send the file creation request to the server
             self.client.send_request(Request("add-file", [new_file, self.my_user]))
 
+
             # todo: add the file to the list only if it was added successfully
             # Add the new file to the local file list and refresh the UI
-            self.file_list.append(new_file)
-            self.search_files()
 
+    def add_file_refresh(self, success: bool, new_file):
+        if success:
+            self.file_list.append(new_file)
             messagebox.showinfo("File Added", f"New file '{new_file.filename}' created successfully.")
+        else:
+            messagebox.showinfo("File Added", f"New file '{new_file.filename}' failed to be created.")
+        self.search_files()
 
     def disconnect(self):
         result = messagebox.askyesno("Disconnect", "Are you sure you want to disconnect?")
