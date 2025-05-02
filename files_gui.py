@@ -1,3 +1,4 @@
+import os
 import tkinter
 
 import customtkinter as ctk
@@ -67,7 +68,7 @@ class FileManagerApp(ctk.CTk):
 
             name_label = ctk.CTkLabel(self.file_frame, text=file.filename, anchor="w", width=200)
             name_label.grid(row=i, column=1, sticky="w")
-            name_label.bind("<Double-Button-1>", lambda e, f=file: self.open_file(f))
+            name_label.bind("<Double-Button-1>", lambda e, f=file: self.client.send_request(Request("open-file", file)))
 
             ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
             ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
@@ -266,21 +267,46 @@ class FileManagerApp(ctk.CTk):
         self.add_user_btn.grid(row=starting_row, column=1, padx=10, pady=10)
         self.save_btn.grid(row=starting_row + 1, columnspan=3, pady=15)
 
-    def open_file(self, file):
-        editor_window = FileEditor()  # <-- Parent window
+    def open_file(self, file: File, content: str):
+        editor_window = FileEditor()
         editor_window.title(file.filename)
         editor_window.text_area.delete("1.0", "end")
-        editor_window.text_area.insert("1.0", file.content)
+        editor_window.text_area.insert("1.0", content)
+
+
+
+    # def add_file(self):
+    #     new_name = simpledialog.askstring("New File", "Enter file name:")
+    #     if new_name:
+    #         new_file = File(filename= new_name, owner= self.my_user.username, creation_date= datetime.now().strftime("%Y-%m-%d"))
+    #
+    #         self.client.send_request(Request("add-file", [new_file, self.my_user]))
+    #
+    #         self.file_list.append(new_file)
+    #         self.search_files()
 
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
-            new_file = File(filename= new_name, content= '', owner= self.my_user.username, creation_date= datetime.now().strftime("%Y-%m-%d"))
+            # Build the file path that will be used on the server
+            file_path = os.path.join("PycharmProjects", "CoEdit", self.my_user.username, new_name)
 
+            # Create a new File object with the given name, path, and other properties
+            new_file = File(
+                filename=new_name,
+                owner=self.my_user.username,  # Assuming my_user holds the logged-in user
+                path=file_path,  # Path to be created and stored on the server
+                creation_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Current date and time
+            )
+
+            # Send the file creation request to the server
             self.client.send_request(Request("add-file", [new_file, self.my_user]))
 
+            # Add the new file to the local file list and refresh the UI
             self.file_list.append(new_file)
             self.search_files()
+
+            messagebox.showinfo("File Added", f"New file '{new_file.filename}' created successfully.")
 
     def disconnect(self):
         result = messagebox.askyesno("Disconnect", "Are you sure you want to disconnect?")

@@ -1,6 +1,6 @@
+import os
 import sqlite3
 import threading
-from webbrowser import Error
 
 from file import File
 from user import User
@@ -32,7 +32,7 @@ class UserDatabase:
                     id TEXT PRIMARY KEY,
                     owner_id INTEGER NOT NULL,
                     filename TEXT NOT NULL,
-                    content TEXT NOT NULL,
+                    path TEXT NOT NULL,
                     creation_date TEXT DEFAULT (datetime('now')),
                     FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
                 )
@@ -78,28 +78,59 @@ class UserDatabase:
     #         self.cursor.execute("SELECT 1 FROM users WHERE username=?", (username,))
     #         return self.cursor.fetchone() is not None
 
-    def add_file(self, user: User, file: File, content):
-        """Add a file for a user."""
-        owner_id = self.get_user_id(user.username)
-        if owner_id:
+    def add_file(self, user: User, file: File, content: str):
+        """Save file content to disk and record its path in the database."""
+
+        if not user.user_id:
+            return False, "User not found."
+
+        # Build directory path
+        base_dir = os.path.join("CoEdit_users", user.username)
+        os.makedirs(base_dir, exist_ok=True)  # Create directory if it doesn't exist
+
+        # Build full file path
+        full_path = os.path.join(base_dir, file.filename)
+
+        try:
+            # Save file content to disk
+            with open(full_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            # Save file metadata and path in DB
             with self.lock:
                 self.cursor.execute(
-                    "INSERT INTO files (id, owner_id, filename, content) VALUES (?, ?, ?, ?)",
-                    (file.file_id, owner_id, file.filename, content),
+                    "INSERT INTO files (id, owner_id, filename, path) VALUES (?, ?, ?, ?)",
+                    (file.file_id, user.user_id, file.filename, full_path),
                 )
                 self.conn.commit()
-                print(f"File '{file.filename}' added successfully.")
-                return True, f"File '{file.filename}' added successfully."
 
-        return False, "User not found."
+            return True, f"File '{file.filename}' saved to disk and registered in database."
 
-    def get_file_content(self, user: User, filename):
-        """Retrieve the content of a specific file."""
+        except Exception as e:
+            return False, f"Error saving file: {str(e)}"
+
+    def get_file_content(self, file: File):
+        """Retrieve the content of a file from disk using its ID."""
+        with self.lock:
+            self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
+            result = self.cursor.fetchone()
+
+        if result:
+            path = result[0]
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except FileNotFoundError:
+                return None
+        return None
+
+    def get_file_path(self, user: User, filename):
+        """Retrieve the file path instead of content."""
         owner_id = self.get_user_id(user.username)
         if owner_id:
             with self.lock:
                 self.cursor.execute(
-                    "SELECT content FROM files WHERE owner_id=? AND filename=?", (owner_id, filename)
+                    "SELECT path FROM files WHERE owner_id=? AND filename=?", (owner_id, filename)
                 )
                 result = self.cursor.fetchone()
                 return result[0] if result else None
@@ -155,10 +186,10 @@ class UserDatabase:
             return result[0] if result else False
 
     def get_readable_files_per_user(self, user: User) -> list[File]:
-        """Retrieve all files the user has read access to as File objects."""
+        """Retrieve all files the user has read access to as File objects (without loading content)."""
         with self.lock:
             self.cursor.execute("""
-                SELECT f.id, f.filename, f.content, f.owner_id, f.creation_date
+                SELECT f.id, f.filename, f.path, f.owner_id, f.creation_date
                 FROM files f
                 JOIN file_access fa ON f.id = fa.file_id
                 WHERE fa.user_id = ? AND fa.can_read = 1
@@ -170,7 +201,7 @@ class UserDatabase:
                 file = File(
                     file_id=row[0],
                     filename=row[1],
-                    content=row[2],
+                    path=row[2],
                     owner=row[3],
                     creation_date=row[4]
                 )

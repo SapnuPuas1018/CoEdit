@@ -72,6 +72,10 @@ class AuthApp(ctk.CTk):
             self.files_gui.save_changes_update_response(response.data)
         elif response.request_type == 'file-list': # refresh files button
             self.files_gui.refresh_files(response.data)
+        elif response.request_type == 'file-content':
+            self.files_gui.open_file(response.data[0], response.data[1]) # response.data[0] = file: File, response.data[1] = content: str
+
+
     def show_login_page(self):
         self.login_gui.show()
         self.signup_gui.hide()

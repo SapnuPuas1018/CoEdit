@@ -2,11 +2,11 @@ from datetime import datetime
 from uuid import uuid4
 
 class File:
-    def __init__(self, filename, content, owner, creation_date=None, file_id=None):
+    def __init__(self, filename, owner, path, creation_date=None, file_id=None):
         self.file_id = str(file_id) if file_id else str(uuid4())
         self.filename = filename
-        self.content = content
-        self.owner = owner
+        self.owner = owner  # This should be the user ID
+        self.path = path
         self.creation_date = creation_date if creation_date else datetime.now()
 
     def __repr__(self):
@@ -17,6 +17,6 @@ class File:
             self.file_id,
             self.owner,
             self.filename,
-            self.content,
+            self.path,
             self.creation_date.strftime("%Y-%m-%d %H:%M:%S")
         )
