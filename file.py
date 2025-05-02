@@ -1,8 +1,11 @@
 from datetime import datetime
 from uuid import uuid4
 
+from user import User
+
+
 class File:
-    def __init__(self, filename, owner, path, creation_date=None, file_id=None):
+    def __init__(self, filename, owner: User, path, creation_date=None, file_id=None):
         self.file_id = str(file_id) if file_id else str(uuid4())
         self.filename = filename
         self.owner = owner  # This should be the user ID

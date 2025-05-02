@@ -237,29 +237,57 @@ class UserDatabase:
             result = self.cursor.fetchone()
             return bool(result and result[0])
 
-
     def get_readable_files_per_user(self, user: User) -> list[File]:
-        """Retrieve all files the user has read access to as File objects (without loading content)."""
+        """Retrieve all files the user has read access to as File objects with owner as a User object."""
         with self.lock:
             self.cursor.execute("""
-                SELECT f.id, f.filename, f.path, f.owner_id, f.creation_date
+                SELECT f.id, f.filename, f.path, f.creation_date,
+                       u.id, u.first_name, u.last_name, u.username, u.password
                 FROM files f
                 JOIN file_access fa ON f.id = fa.file_id
+                JOIN users u ON f.owner_id = u.id
                 WHERE fa.user_id = ? AND fa.can_read = 1
             """, (user.user_id,))
 
             rows = self.cursor.fetchall()
             readable_files = []
             for row in rows:
+                file_id, filename, path, creation_date = row[:4]
+                owner = User(
+                    user_id=row[4],
+                    first_name=row[5],
+                    last_name=row[6],
+                    username=row[7],
+                    password=''
+                )
                 file = File(
-                    file_id=row[0],
-                    filename=row[1],
-                    path=row[2],
-                    owner=row[3],
-                    creation_date=row[4]
+                    file_id=file_id,
+                    filename=filename,
+                    path=path,
+                    owner=owner,
+                    creation_date=creation_date
                 )
                 readable_files.append(file)
             return readable_files
+
+    def get_user_by_id(self, user_id: int):
+        """Retrieve a user object from the database using their ID."""
+        with self.lock:
+            self.cursor.execute("""
+                SELECT id, first_name, last_name, username
+                FROM users
+                WHERE id = ?
+            """, (user_id,))
+            row = self.cursor.fetchone()
+            if row:
+                return User(
+                    user_id=row[0],
+                    first_name=row[1],
+                    last_name=row[2],
+                    username=row[3],
+                    password=row[4]
+                )
+            return None
 
     def add_file_access(self, user: User, file: File, can_read=False, can_write=False):
         """Grant or update read/write access to a file for a specific user."""
@@ -337,16 +365,6 @@ class UserDatabase:
                 user_accesses.append(user_access)
 
             return user_accesses
-
-    # def rename_file(self, file: File, new_filename: str) -> bool:
-    #     """Rename a file using its file ID."""
-    #     with self.lock:
-    #         self.cursor.execute(
-    #             "UPDATE files SET filename = ? WHERE id = ?",
-    #             (new_filename, file.file_id)
-    #         )
-    #         self.conn.commit()
-    #         return self.cursor.rowcount > 0  # True if a row was updated
 
     def rename_file(self, file: File, new_filename: str) -> bool:
         """Rename a file by updating both the filename on disk and in the database."""

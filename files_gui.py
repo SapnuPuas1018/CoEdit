@@ -49,12 +49,10 @@ class FileManagerApp(ctk.CTk):
 
     def refresh_files(self, files):
         '''Receives the files from server - database as a list[File] object'''
-        file_objects = files
-        print('file_objects: ')
-        print(file_objects)
+        print(files)
 
-        if file_objects is not None:
-            self.file_list = file_objects
+        if files is not None:
+            self.file_list = files
             self.filtered_files = self.file_list.copy()
 
         self.display_files()
@@ -71,7 +69,7 @@ class FileManagerApp(ctk.CTk):
             name_label.grid(row=i, column=1, sticky="w")
             name_label.bind("<Double-Button-1>", lambda e, f=file: self.client.send_request(Request("open-file", [self.my_user, file])))
 
-            ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
+            ctk.CTkLabel(self.file_frame, text=file.owner.username, width=100).grid(row=i, column=2)
             ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
 
     def create_widgets(self):
@@ -140,9 +138,9 @@ class FileManagerApp(ctk.CTk):
         print(self.my_user)
         menu = tkinter.Menu(self, tearoff=0)
         menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
-        if file.owner != self.my_user.user_id:
+        if file.owner.user_id != self.my_user.user_id:
             menu.add_command(label="🗑️ Delete For Me", command=lambda: self.delete_file_for_me(file))
-        if file.owner == self.my_user.user_id:
+        if file.owner.user_id == self.my_user.user_id:
             menu.add_command(label="👥 Manage Access", command=lambda: self.client.send_request(Request("get-access-list", file)))
             menu.add_command(label="🗑️ Delete File", command=lambda: self.delete_file(file))
 
@@ -292,17 +290,13 @@ class FileManagerApp(ctk.CTk):
             # Create a new File object with the given name, path, and other properties
             new_file = File(
                 filename=new_name,
-                owner=self.my_user.username,  # Assuming my_user holds the logged-in user
+                owner=self.my_user,  # Assuming my_user holds the logged-in user
                 path=file_path,  # Path to be created and stored on the server
                 creation_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Current date and time
             )
 
             # Send the file creation request to the server
             self.client.send_request(Request("add-file", [new_file, self.my_user]))
-
-
-            # todo: add the file to the list only if it was added successfully
-            # Add the new file to the local file list and refresh the UI
 
     def add_file_refresh(self, success: bool, new_file):
         if success:
