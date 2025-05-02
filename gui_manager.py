@@ -19,7 +19,7 @@ class AuthApp(ctk.CTk):
         self.my_user = None
 
         self.container = ctk.CTkFrame(self)
-        self.container.pack(expand=True)
+        self.container.pack(expand=True, fill="both")
 
         self.client = Client()
         self.client.connect()

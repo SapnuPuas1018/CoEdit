@@ -11,7 +11,7 @@ class FileEditor(ctk.CTkToplevel):
 
         # Search
         self.search_frame = ctk.CTkFrame(self)
-        self.search_frame.pack(pady=5)
+        self.search_frame.pack(pady=5, fill="x", padx=5)
 
         self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="🔍Search...", width=200)
         self.search_entry.pack(side="left", padx=5)
@@ -29,6 +29,7 @@ class FileEditor(ctk.CTkToplevel):
         # Text Widget
         self.text_area = ctk.CTkTextbox(self, wrap="word")
         self.text_area.pack(expand=True, fill="both", padx=5, pady=5)
+        self.text_area._textbox.config(undo=True, maxundo=-1)  # Enable undo/redo
 
         # Menu
         self.menu = tk.Menu(self)
@@ -43,6 +44,8 @@ class FileEditor(ctk.CTkToplevel):
 
         # Bindings
         self.bind("<Control-f>", lambda event: self.find_text())
+        self.bind("<Control-z>", self.undo)
+        self.bind("<Control-y>", self.redo)
 
     def find_text(self):
         self.text_area.tag_remove("highlight", "1.0", "end")
@@ -93,3 +96,19 @@ class FileEditor(ctk.CTkToplevel):
             return
         self.current_match_index = (self.current_match_index - 1) % len(self.match_positions)
         self.show_match(self.current_match_index)
+
+    def undo(self, event=None):
+        try:
+            print('undo')
+            self.text_area._textbox.edit_undo()
+        except tk.TclError:
+            pass  # Nothing to undo
+            print('Nothing to undo')
+
+    def redo(self, event=None):
+        try:
+            print('redo')
+            self.text_area._textbox.edit_redo()
+        except tk.TclError:
+            pass  # Nothing to redo
+            print('Nothing to redo')
