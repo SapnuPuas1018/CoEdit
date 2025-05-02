@@ -28,16 +28,12 @@ class FileManagerApp(ctk.CTk):
         self.filtered_files = []
 
         self.create_widgets()
-        # self.load_files()
         self.my_user = None
 
     def load_files(self):
         '''Receives the files from server - database as a list[File] object'''
-        # print('Requesting file list from server...')
 
         file_objects = self.client.get_response_nowait()
-        # print(f'file_objects : {file_objects}')
-         # file_objects = Request('', [File('notes_file', 'hi this is my notes', 'txt', 'me', datetime.now())])
         print(type(file_objects))
         print(file_objects)
 
@@ -67,7 +63,7 @@ class FileManagerApp(ctk.CTk):
 
             name_label = ctk.CTkLabel(self.file_frame, text=file.filename, anchor="w", width=200)
             name_label.grid(row=i, column=1, sticky="w")
-            name_label.bind("<Double-Button-1>", lambda e, f=file: self.client.send_request(Request("open-file", [self.my_user, file])))
+            name_label.bind("<Double-Button-1>", lambda e, f=file: self.client.send_request(Request("open-file", [self.my_user, f])))
 
             ctk.CTkLabel(self.file_frame, text=file.owner.username, width=100).grid(row=i, column=2)
             ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
@@ -123,7 +119,7 @@ class FileManagerApp(ctk.CTk):
         if criterion == "Name":
             self.filtered_files.sort(key=lambda x: x.filename.lower())
         elif criterion == "Owner":
-            self.filtered_files.sort(key=lambda x: x.owner.lower())
+            self.filtered_files.sort(key=lambda x: x.owner.username.lower())
         elif criterion == "Date":
             self.filtered_files.sort(key=lambda x: x.creation_date.date(), reverse=True)
         self.display_files()
@@ -132,8 +128,6 @@ class FileManagerApp(ctk.CTk):
 
     # todo: be able to delete file only if im the file owner,
     #  be able to delete only for me only if im not owner and remove my read access for this file in database,
-    #  rename the file will rename it in database,
-    #  manage access will only accessible to owner return all the users that have an access to this file
     def show_actions(self, file):
         print(self.my_user)
         menu = tkinter.Menu(self, tearoff=0)
