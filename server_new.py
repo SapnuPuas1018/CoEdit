@@ -65,7 +65,8 @@ class Server:
         elif request.request_type == 'delete-file':
             pass
         elif request.request_type == "open-file":
-            self.open_file(request.data, conn)
+            self.open_file(request.data[0], request.data[1], conn)
+            print('nigger')
         elif request.request_type == 'get-access-list':
             self.handle_get_access_list(request, conn)
         elif request.request_type == 'check-user-exists':
@@ -73,8 +74,8 @@ class Server:
         elif request.request_type == 'update-access-table':
             self.handle_update_access_table(request, conn)
 
-    def open_file(self, file: File, conn):
-        content = self.database.get_file_content(file)
+    def open_file(self,  user: User , file: File, conn):
+        content = self.database.get_file_content(user, file)
         protocol.send(conn, Request('file-content', [file, content]))
 
     def handle_update_access_table(self, request: Request, conn):

@@ -68,7 +68,7 @@ class FileManagerApp(ctk.CTk):
 
             name_label = ctk.CTkLabel(self.file_frame, text=file.filename, anchor="w", width=200)
             name_label.grid(row=i, column=1, sticky="w")
-            name_label.bind("<Double-Button-1>", lambda e, f=file: self.client.send_request(Request("open-file", file)))
+            name_label.bind("<Double-Button-1>", lambda e, f=file: self.client.send_request(Request("open-file", [self.my_user, file])))
 
             ctk.CTkLabel(self.file_frame, text=file.owner, width=100).grid(row=i, column=2)
             ctk.CTkLabel(self.file_frame, text=file.creation_date, width=150).grid(row=i, column=3)
@@ -268,10 +268,13 @@ class FileManagerApp(ctk.CTk):
         self.save_btn.grid(row=starting_row + 1, columnspan=3, pady=15)
 
     def open_file(self, file: File, content: str):
-        editor_window = FileEditor()
-        editor_window.title(file.filename)
-        editor_window.text_area.delete("1.0", "end")
-        editor_window.text_area.insert("1.0", content)
+        if content is not None:
+            editor_window = FileEditor()
+            editor_window.title(file.filename)
+            editor_window.text_area.delete("1.0", "end")
+            editor_window.text_area.insert("1.0", content)
+        else:
+            messagebox.showinfo("no permission", "you dont have permissions for this file")
 
 
 
@@ -289,7 +292,7 @@ class FileManagerApp(ctk.CTk):
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
             # Build the file path that will be used on the server
-            file_path = os.path.join("PycharmProjects", "CoEdit", self.my_user.username, new_name)
+            file_path = os.path.join('CoEdit_users', self.my_user.username, new_name)
 
             # Create a new File object with the given name, path, and other properties
             new_file = File(
@@ -302,6 +305,7 @@ class FileManagerApp(ctk.CTk):
             # Send the file creation request to the server
             self.client.send_request(Request("add-file", [new_file, self.my_user]))
 
+            # todo: add the file to the list only if it was added successfully
             # Add the new file to the local file list and refresh the UI
             self.file_list.append(new_file)
             self.search_files()

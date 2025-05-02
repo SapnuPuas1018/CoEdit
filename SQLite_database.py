@@ -109,9 +109,21 @@ class UserDatabase:
         except Exception as e:
             return False, f"Error saving file: {str(e)}"
 
-    def get_file_content(self, file: File):
-        """Retrieve the content of a file from disk using its ID."""
+    def get_file_content(self, user: User, file: File):
+        """Retrieve the content of a file from disk if the user has read access."""
         with self.lock:
+            # Check if the user has read access
+            self.cursor.execute("""
+                SELECT can_read FROM file_access 
+                JOIN users ON file_access.user_id = users.id 
+                WHERE users.username = ? AND file_access.file_id = ?
+            """, (user.username, file.file_id))
+            access_result = self.cursor.fetchone()
+
+            if not access_result or not access_result[0]:
+                return None  # User has no read access
+
+            # Retrieve file path
             self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
             result = self.cursor.fetchone()
 
