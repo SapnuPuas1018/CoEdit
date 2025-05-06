@@ -6,17 +6,19 @@ import tkinter as tk
 import protocol
 from client_new import Client
 from request import Request
-from test import get_diff_changes
 
 
 class FileEditor(ctk.CTkToplevel):
-    def __init__(self, client):
+    def __init__(self, client, file, my_user, content):
         super().__init__()
         self.title("CoEdit")
         self.geometry("800x600")
 
+        self.current_file = file
+        self.my_user = my_user
         self.client = client
 
+        self.suppress_text_change = False
         self.match_positions = []
         self.current_match_index = 0
 
@@ -42,7 +44,8 @@ class FileEditor(ctk.CTkToplevel):
         self.text_area._textbox.config(undo=True, maxundo=-1)
         self.text_area.bind("<<Modified>>", self.on_text_change)
 
-        self.current_content = self.text_area.get("1.0", "end-1c")
+        self.current_content = content
+        self.text_area.insert("1.0", self.current_content)  # Initialize with content
 
         # Menu
         self.menu = tk.Menu(self)
@@ -127,12 +130,22 @@ class FileEditor(ctk.CTkToplevel):
             print('Nothing to redo')
 
     def on_text_change(self, event):
-        self.text_area.edit_modified(False)  # reset the modified flag
-        new_content = self.text_area.get("1.0", "end-1c")  # get all text
+        if self.suppress_text_change:
+            return
+
+        self.text_area.edit_modified(False)  # Reset the modified flag
+        new_content = self.text_area.get("1.0", "end-1c")
+
+        if new_content == self.current_content:
+            return  # No actual change
+
+        # Generate diffs
         diff_dict = self.get_diff_changes(self.current_content, new_content)
         self.current_content = new_content
-        self.client.send_request(Request('file-content-update', diff_dict))
 
+        # Send the changes to the server
+        self.client.send_request(Request('file-content-update', [self.current_file, diff_dict, self.my_user]))
+        print('sending request')
 
     def get_diff_changes(self, old: str, new: str) -> list[dict[str,str]]:
         changes = []
@@ -158,4 +171,25 @@ class FileEditor(ctk.CTkToplevel):
                 changes.append({"insert": new_sub, "line": line, "char": char})
 
         return changes
+
+    def apply_changes(self, changes):
+        self.suppress_text_change = True
+        try:
+            for change in changes:
+                line = int(change['line']) + 1
+                char = int(change['char'])
+                index = f"{line}.{char}"
+
+                if 'delete' in change:
+                    delete_len = len(change['delete'])
+                    end_index = f"{line}.{char + delete_len}"
+                    self.text_area.delete(index, end_index)
+
+                if 'insert' in change:
+                    self.text_area.insert(index, change['insert'])
+
+            self.current_content = self.text_area.get("1.0", "end-1c")
+            self.text_area.edit_modified(False)
+        finally:
+            self.suppress_text_change = False
 

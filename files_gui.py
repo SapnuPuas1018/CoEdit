@@ -20,6 +20,7 @@ ctk.set_default_color_theme("blue")
 class FileManagerApp(ctk.CTk):
     def __init__(self, gui_manager):
         super().__init__()
+        self.open_editors = {}
         self.container = gui_manager.container
         self.client = gui_manager.client
 
@@ -270,12 +271,25 @@ class FileManagerApp(ctk.CTk):
 
     def open_file(self, file: File, content: str):
         if content is not None:
-            editor_window = FileEditor(self.client)
+            editor_window = FileEditor(self.client, file, self.my_user)
             editor_window.title(file.filename)
             editor_window.text_area.delete("1.0", "end")
             editor_window.text_area.insert("1.0", content)
         else:
             messagebox.showinfo("no permission", "you dont have permissions for this file")
+
+    def open_file(self, file: File, content: str):
+        if content is not None:
+            editor_window = FileEditor(self.client, file, self.my_user, content)  # Pass content here
+            editor_window.title(file.filename)
+            self.open_editors[file.file_id] = editor_window
+        else:
+            messagebox.showinfo("no permission", "You don't have permissions for this file.")
+
+    def apply_file_update(self, file: File, changes: list[dict]):
+        editor = self.open_editors.get(file.file_id)
+        if editor:
+            editor.apply_changes(changes)
 
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")

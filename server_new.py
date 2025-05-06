@@ -17,6 +17,7 @@ KEY_FILE = 'privateKey.key'
 
 class Server:
     def __init__(self):
+        self.open_files = {}
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(CERT_FILE, KEY_FILE)
 
@@ -46,6 +47,13 @@ class Server:
             print(sock_err)
         finally:
             conn.close()  # todo check if it actually closes the connection
+            self.cleanup_connection(conn)
+
+    def cleanup_connection(self, conn):
+        for file_id in list(self.open_files):
+            self.open_files[file_id] = [(u, c) for u, c in self.open_files[file_id] if c != conn]
+            if not self.open_files[file_id]:
+                del self.open_files[file_id]
 
     def handle_request(self, request: Request, conn):
         print(f"received from client : {request}")
@@ -72,9 +80,74 @@ class Server:
             self.handle_check_user_exists(request, conn)
         elif request.request_type == 'update-access-table':
             self.handle_update_access_table(request, conn)
+        elif request.request_type == 'file-content-update':
+            self.handle_file_content_update(request, conn)
+
+    def handle_file_content_update(self, request: Request, sender_conn):
+        file: File = request.data[0]
+        changes: list[dict] = request.data[1]
+        user: User = request.data[2]
+
+        # Get current content
+        current_content = self.database.get_file_content(user, file)
+
+        # Apply changes
+        result = self.apply_changes(current_content, changes)
+        updated_content = result["content"]
+        changes = result["changes"]  # This might be unchanged, but safe to reassign
+
+        # Save new content to DB, also checks if I have permission to write
+        self.database.save_file_content(user, file, updated_content)
+
+        # Broadcast to other clients
+        for user, conn in self.open_files.get(file.file_id, []):
+            if conn != sender_conn:
+                try:
+                    protocol.send(conn, Request('file-content-update', [file, changes]))
+                except Exception as e:
+                    print(f"Error sending update to {user.username}: {e}")
+
+    def apply_changes(self, original: str, changes: list[dict]) -> dict:
+        lines = original.splitlines(keepends=True)
+        for change in changes:
+            line = change["line"]
+            char = change["char"]
+            if line >= len(lines): continue
+            line_content = lines[line]
+            if "delete" in change:
+                del_text = change["delete"]
+                lines[line] = line_content[:char] + line_content[char + len(del_text):]
+            if "insert" in change:
+                ins_text = change["insert"]
+                lines[line] = line_content[:char] + ins_text + line_content[char:]
+        return {"content": ''.join(lines), "changes": changes}
+
+    # def handle_edit_file(self, request: Request, sender_conn):
+    #     file: File = request.data[0]
+    #     new_content: str = request.data[1]
+    #
+    #     # Save the new content (if needed)
+    #     self.database.update_file_content(file, new_content)
+    #
+    #     # Notify all other clients with the file open
+    #     if file.file_id in self.open_files:
+    #         for user, conn in self.open_files[file.file_id]:
+    #             if conn != sender_conn:  # Don't send the update back to the sender
+    #                 try:
+    #                     protocol.send(conn, Request('file-updated', [file, new_content]))
+    #                 except Exception as e:
+    #                     print(f"Failed to notify {user.username}: {e}")
 
     def open_file(self,  user: User , file: File, conn):
         content = self.database.get_file_content(user, file)
+
+        # Track users and their connection
+        if file.file_id not in self.open_files:
+            self.open_files[file.file_id] = []
+        # Avoid duplicates
+        if not any(u.username == user.username for u, _ in self.open_files[file.file_id]):
+            self.open_files[file.file_id].append((user, conn))
+            
         protocol.send(conn, Request('file-content', [file, content]))
 
     def handle_update_access_table(self, request: Request, conn):

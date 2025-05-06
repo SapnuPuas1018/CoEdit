@@ -105,6 +105,7 @@ class UserDatabase:
 
     def get_file_content(self, user: User, file: File):
         """Retrieve the content of a file from disk if the user has read access."""
+        print('hi')
         with self.lock:
             # Check if the user has read access
             self.cursor.execute("""
@@ -132,15 +133,19 @@ class UserDatabase:
 
     def save_file_content(self, user: User, file: File, content: str) -> bool:
         if not self.can_user_write(user, file):
+            print("User does not have write access")
             return False
 
         with self.lock:
             self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
             result = self.cursor.fetchone()
+            print("Stored file path:", result[0])
             if result:
+                print(result[0])
                 path = result[0]
                 try:
                     with open(path, "w", encoding="utf-8") as f:
+                        print('i opened the file')
                         f.write(content)
                     return True
                 except Exception as e:
