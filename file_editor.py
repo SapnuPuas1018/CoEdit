@@ -1,15 +1,25 @@
+import difflib
+
 import customtkinter as ctk
 import tkinter as tk
+
+import protocol
+from client_new import Client
+from request import Request
+from test import get_diff_changes
+
+
 class FileEditor(ctk.CTkToplevel):
-    def __init__(self):
+    def __init__(self, client):
         super().__init__()
         self.title("CoEdit")
         self.geometry("800x600")
 
+        self.client = client
+
         self.match_positions = []
         self.current_match_index = 0
 
-        # Search
         self.search_frame = ctk.CTkFrame(self)
         self.search_frame.pack(pady=5, fill="x", padx=5)
 
@@ -29,7 +39,10 @@ class FileEditor(ctk.CTkToplevel):
         # Text Widget
         self.text_area = ctk.CTkTextbox(self, wrap="word")
         self.text_area.pack(expand=True, fill="both", padx=5, pady=5)
-        self.text_area._textbox.config(undo=True, maxundo=-1)  # Enable undo/redo
+        self.text_area._textbox.config(undo=True, maxundo=-1)
+        self.text_area.bind("<<Modified>>", self.on_text_change)
+
+        self.current_content = self.text_area.get("1.0", "end-1c")
 
         # Menu
         self.menu = tk.Menu(self)
@@ -112,3 +125,37 @@ class FileEditor(ctk.CTkToplevel):
         except tk.TclError:
             pass  # Nothing to redo
             print('Nothing to redo')
+
+    def on_text_change(self, event):
+        self.text_area.edit_modified(False)  # reset the modified flag
+        new_content = self.text_area.get("1.0", "end-1c")  # get all text
+        diff_dict = self.get_diff_changes(self.current_content, new_content)
+        self.current_content = new_content
+        self.client.send_request(Request('file-content-update', diff_dict))
+
+
+    def get_diff_changes(self, old: str, new: str) -> list[dict[str,str]]:
+        changes = []
+
+        sm = difflib.SequenceMatcher(None, old, new)
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == 'equal':
+                continue
+
+            old_sub = old[i1:i2]
+            new_sub = new[j1:j2]
+
+            # Compute line and character for i1 and j1
+            line = old[:i1].count('\n')
+            char = i1 - old.rfind('\n', 0, i1) - 1 if '\n' in old[:i1] else i1
+
+            if tag == 'insert':
+                changes.append({"insert": new_sub, "line": line, "char": char})
+            elif tag == 'delete':
+                changes.append({"delete": old_sub, "line": line, "char": char})
+            elif tag == 'replace':
+                changes.append({"delete": old_sub, "line": line, "char": char})
+                changes.append({"insert": new_sub, "line": line, "char": char})
+
+        return changes
+

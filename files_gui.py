@@ -30,6 +30,8 @@ class FileManagerApp(ctk.CTk):
         self.create_widgets()
         self.my_user = None
 
+
+
     def load_files(self):
         '''Receives the files from server - database as a list[File] object'''
 
@@ -268,7 +270,7 @@ class FileManagerApp(ctk.CTk):
 
     def open_file(self, file: File, content: str):
         if content is not None:
-            editor_window = FileEditor()
+            editor_window = FileEditor(self.client)
             editor_window.title(file.filename)
             editor_window.text_area.delete("1.0", "end")
             editor_window.text_area.insert("1.0", content)
