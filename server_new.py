@@ -82,6 +82,9 @@ class Server:
             self.handle_update_access_table(request, conn)
         elif request.request_type == 'file-content-update':
             self.handle_file_content_update(request, conn)
+        # todo: maybe maybe, optional, to add a refresh text button in the editor screen
+        # elif request.request_type == 'refresh-text':
+        #     pass
 
     def handle_file_content_update(self, request: Request, sender_conn):
         file: File = request.data[0]
