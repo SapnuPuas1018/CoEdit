@@ -1,4 +1,6 @@
 import difflib
+import time
+from datetime import datetime
 
 import customtkinter as ctk
 import tkinter as tk
@@ -43,6 +45,8 @@ class FileEditor(ctk.CTkToplevel):
         self.text_area.pack(expand=True, fill="both", padx=5, pady=5)
         self.text_area._textbox.config(undo=True, maxundo=-1)
         self.text_area.bind("<<Modified>>", self.on_text_change)
+        self.last_update = time.time()
+        self.changes_history = []
 
         self.current_content = content
         self.text_area.insert("1.0", self.current_content)  # Initialize with content
@@ -141,7 +145,13 @@ class FileEditor(ctk.CTkToplevel):
 
         # Generate diffs
         diff_dict = self.get_diff_changes(self.current_content, new_content)
+
+        # Append each change to history
+        for change in diff_dict:
+            self.changes_history.append(change)
+
         self.current_content = new_content
+        self.last_update = time.time()
 
         # Send the changes to the server
         self.client.send_request(Request('file-content-update', [self.current_file, diff_dict, self.my_user]))
@@ -163,14 +173,27 @@ class FileEditor(ctk.CTkToplevel):
             char = i1 - old.rfind('\n', 0, i1) - 1 if '\n' in old[:i1] else i1
 
             if tag == 'insert':
-                changes.append({"insert": new_sub, "line": line, "char": char})
+                changes.append({"insert": new_sub, "line": line, "char": char, "time": time.time()})
             elif tag == 'delete':
-                changes.append({"delete": old_sub, "line": line, "char": char})
+                changes.append({"delete": old_sub, "line": line, "char": char, "time": time.time()})
             elif tag == 'replace':
-                changes.append({"delete": old_sub, "line": line, "char": char})
-                changes.append({"insert": new_sub, "line": line, "char": char})
+                changes.append({"delete": old_sub, "line": line, "char": char, "time": time.time()})
+                changes.append({"insert": new_sub, "line": line, "char": char, "time": time.time()})
 
         return changes
+
+    def apply_single_change(self, change):
+        line = int(change['line']) + 1
+        char = int(change['char'])
+        index = f"{line}.{char}"
+
+        if 'delete' in change:
+            delete_len = len(change['delete'])
+            end_index = f"{line}.{char + delete_len}"
+            self.text_area.delete(index, end_index)
+
+        if 'insert' in change:
+            self.insert_text_preserve_cursor(index, change['insert'])
 
     def apply_changes(self, changes):
         cursor_index = self.text_area.index("insert")
@@ -178,24 +201,42 @@ class FileEditor(ctk.CTkToplevel):
 
         try:
             for change in changes:
-                line = int(change['line']) + 1
-                char = int(change['char'])
-                index = f"{line}.{char}"
+                # Find future changes to revert
+                incoming_time = change['time']
+                future_changes = [c for c in self.changes_history if c['time'] > incoming_time]
 
-                if 'delete' in change:
-                    delete_len = len(change['delete'])
-                    end_index = f"{line}.{char + delete_len}"
-                    self.text_area.delete(index, end_index)
+                # Revert future changes
+                for fc in reversed(future_changes):
+                    self.revert_change(fc)
 
-                if 'insert' in change:
-                    # self.text_area.insert(index, change['insert'])
-                    self.insert_text_preserve_cursor(index, change['insert'])
+                # Apply incoming change
+                self.apply_single_change(change)
+
+                # Add to history
+                self.changes_history.append(change)
+                self.changes_history.sort(key=lambda x: x['time'])  # Maintain order
+
+                # Reapply future changes
+                for fc in future_changes:
+                    self.apply_single_change(fc)
 
             self.current_content = self.text_area.get("1.0", "end-1c")
             self.text_area.edit_modified(False)
+
         finally:
-            # self.text_area.mark_set("insert", cursor_index)
             self.suppress_text_change = False
+
+    def revert_change(self, change):
+        line = int(change['line']) + 1
+        char = int(change['char'])
+        index = f"{line}.{char}"
+
+        if 'insert' in change:
+            delete_len = len(change['insert'])
+            end_index = f"{line}.{char + delete_len}"
+            self.text_area.delete(index, end_index)
+        elif 'delete' in change:
+            self.text_area.insert(index, change['delete'])
 
     def insert_text_preserve_cursor(self, insert_index, content):
         cursor_index = self.text_area.index("insert")
