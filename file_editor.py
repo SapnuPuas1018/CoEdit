@@ -173,6 +173,8 @@ class FileEditor(ctk.CTkToplevel):
         return changes
 
     def apply_changes(self, changes):
+        cursor_index = self.text_area.index("insert")
+
         self.suppress_text_change = True
         try:
             for change in changes:
@@ -186,10 +188,37 @@ class FileEditor(ctk.CTkToplevel):
                     self.text_area.delete(index, end_index)
 
                 if 'insert' in change:
-                    self.text_area.insert(index, change['insert'])
+                    # self.text_area.insert(index, change['insert'])
+                    self.insert_text_preserve_cursor(index, change['insert'])
 
             self.current_content = self.text_area.get("1.0", "end-1c")
             self.text_area.edit_modified(False)
         finally:
+            self.text_area.mark_set("insert", cursor_index)
+
             self.suppress_text_change = False
+
+    def insert_text_preserve_cursor(self, insert_index, content):
+        # Get current cursor position
+        cursor_index = self.text_area.index("insert")
+
+        def index_to_tuple(index_str):
+            line, char = map(int, index_str.split('.'))
+            return line, char
+
+        cursor_line, cursor_char = index_to_tuple(cursor_index)
+        insert_line, insert_char = index_to_tuple(insert_index)
+
+        # Insert the text
+        self.text_area.insert(insert_index, content)
+
+        # Decide if cursor needs to be adjusted
+        if (insert_line, insert_char) < (cursor_line, cursor_char):
+            # If insert is before the cursor, move the cursor forward by the inserted text length
+            new_char_index = cursor_char + len(content)
+            new_cursor_index = f"{cursor_line}.{new_char_index}"
+            self.text_area.mark_set("insert", new_cursor_index)
+        else:
+            # Insert at or after cursor, keep cursor where it was
+            self.text_area.mark_set("insert", cursor_index)
 

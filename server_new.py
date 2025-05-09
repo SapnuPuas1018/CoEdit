@@ -1,6 +1,7 @@
 import socket
 import ssl
-from threading import Thread
+import time
+from threading import Thread, Lock, Timer
 
 import protocol
 from SQLite_database import UserDatabase
@@ -13,6 +14,7 @@ PORT = 8468
 QUEUE_LEN = 1
 CERT_FILE = 'certificate.crt'
 KEY_FILE = 'privateKey.key'
+UPDATE_INTERVAL = 0.8  # 800ms
 
 
 class Server:
@@ -28,6 +30,58 @@ class Server:
         self.s_sock = self.context.wrap_socket(self.server_socket, server_side=True)
         self.thread_list = []
         self.database = UserDatabase()
+
+        # Add pending changes queue and lock for thread safety
+        self.pending_changes = {}  # {file_id: {conn: [changes]}}
+        self.pending_changes_lock = Lock()
+
+        # Start the timer for sending batched updates
+        self.start_update_timer()
+
+    def start_update_timer(self):
+        """Start a timer that sends batched updates every UPDATE_INTERVAL seconds"""
+        self.update_timer = Timer(UPDATE_INTERVAL, self.send_batched_updates)
+        self.update_timer.daemon = True  # Allow the program to exit even if timer is running
+        self.update_timer.start()
+
+    def send_batched_updates(self):
+        """Send all pending changes and schedule next update"""
+        try:
+            with self.pending_changes_lock:
+                # Process each file's pending changes
+                for file_id, conn_changes in list(self.pending_changes.items()):
+                    if file_id not in self.open_files:
+                        # File is no longer open by anyone
+                        continue
+
+                    # For each sender connection with pending changes
+                    for sender_conn, changes in list(conn_changes.items()):
+                        if not changes:
+                            continue
+
+                        # Get the file from the first change (they should all be for the same file)
+                        file = changes[0][0]
+
+                        # Group all changes
+                        all_changes = []
+                        for _, change_list in changes:
+                            all_changes.extend(change_list)
+
+                        # Broadcast to other connected clients
+                        for user, conn in self.open_files.get(file_id, []):
+                            if conn != sender_conn:
+                                try:
+                                    protocol.send(conn, Request('file-content-update', [file, all_changes]))
+                                except Exception as e:
+                                    print(f"Error sending batched update to {user.username}: {e}")
+
+                # Clear the pending changes
+                self.pending_changes.clear()
+        except Exception as e:
+            print(f"Error in send_batched_updates: {e}")
+        finally:
+            # Schedule the next update
+            self.start_update_timer()
 
     def start_server(self):
         while True:
@@ -46,14 +100,23 @@ class Server:
         except socket.error as sock_err:
             print(sock_err)
         finally:
-            conn.close()  # todo check if it actually closes the connection
+            conn.close()
             self.cleanup_connection(conn)
 
     def cleanup_connection(self, conn):
+        # Remove connection from open_files
         for file_id in list(self.open_files):
             self.open_files[file_id] = [(u, c) for u, c in self.open_files[file_id] if c != conn]
             if not self.open_files[file_id]:
                 del self.open_files[file_id]
+
+        # Remove connection from pending_changes
+        with self.pending_changes_lock:
+            for file_id in list(self.pending_changes):
+                if conn in self.pending_changes[file_id]:
+                    del self.pending_changes[file_id][conn]
+                if not self.pending_changes[file_id]:
+                    del self.pending_changes[file_id]
 
     def handle_request(self, request: Request, conn):
         print(f"received from client : {request}")
@@ -82,33 +145,30 @@ class Server:
             self.handle_update_access_table(request, conn)
         elif request.request_type == 'file-content-update':
             self.handle_file_content_update(request, conn)
-        # todo: maybe maybe, optional, to add a refresh text button in the editor screen
-        # elif request.request_type == 'refresh-text':
-        #     pass
 
     def handle_file_content_update(self, request: Request, sender_conn):
         file: File = request.data[0]
         changes: list[dict] = request.data[1]
         user: User = request.data[2]
 
-        # Get current content
         current_content = self.database.get_file_content(user, file)
 
-        # Apply changes
         result = self.apply_changes(current_content, changes)
         updated_content = result["content"]
-        changes = result["changes"]  # This might be unchanged, but safe to reassign
+        changes = result["changes"]
 
-        # Save new content to DB, also checks if I have permission to write
+        # Save new content to DB
         self.database.save_file_content(user, file, updated_content)
 
-        # Broadcast to other clients
-        for user, conn in self.open_files.get(file.file_id, []):
-            if conn != sender_conn:
-                try:
-                    protocol.send(conn, Request('file-content-update', [file, changes]))
-                except Exception as e:
-                    print(f"Error sending update to {user.username}: {e}")
+        with self.pending_changes_lock:
+            if file.file_id not in self.pending_changes:
+                self.pending_changes[file.file_id] = {}
+
+            if sender_conn not in self.pending_changes[file.file_id]:
+                self.pending_changes[file.file_id][sender_conn] = []
+
+            # Add these changes to the queue
+            self.pending_changes[file.file_id][sender_conn].append((file, changes))
 
     def apply_changes(self, original: str, changes: list[dict]) -> dict:
         lines = original.splitlines(keepends=True)
@@ -125,23 +185,7 @@ class Server:
                 lines[line] = line_content[:char] + ins_text + line_content[char:]
         return {"content": ''.join(lines), "changes": changes}
 
-    # def handle_edit_file(self, request: Request, sender_conn):
-    #     file: File = request.data[0]
-    #     new_content: str = request.data[1]
-    #
-    #     # Save the new content (if needed)
-    #     self.database.update_file_content(file, new_content)
-    #
-    #     # Notify all other clients with the file open
-    #     if file.file_id in self.open_files:
-    #         for user, conn in self.open_files[file.file_id]:
-    #             if conn != sender_conn:  # Don't send the update back to the sender
-    #                 try:
-    #                     protocol.send(conn, Request('file-updated', [file, new_content]))
-    #                 except Exception as e:
-    #                     print(f"Failed to notify {user.username}: {e}")
-
-    def open_file(self,  user: User , file: File, conn):
+    def open_file(self, user: User, file: File, conn):
         content = self.database.get_file_content(user, file)
 
         # Track users and their connection
@@ -150,7 +194,7 @@ class Server:
         # Avoid duplicates
         if not any(u.username == user.username for u, _ in self.open_files[file.file_id]):
             self.open_files[file.file_id].append((user, conn))
-            
+
         protocol.send(conn, Request('file-content', [file, content]))
 
     def handle_update_access_table(self, request: Request, conn):
@@ -170,7 +214,7 @@ class Server:
                 if user:
                     # Update the file access for this user
                     x = self.database.change_file_access(user, file, can_read, can_write)
-                    print('-'*30)
+                    print('-' * 30)
                     print(x)
             protocol.send(conn, Request('update-access-response', True))
         except Exception as e:
@@ -179,7 +223,7 @@ class Server:
 
     def handle_check_user_exists(self, request: Request, conn):
         username = request.data
-        user = self.database.check_if_user_exists_by_username(username) # returns None if not found
+        user = self.database.check_if_user_exists_by_username(username)  # returns None if not found
         protocol.send(conn, Request('user-exists-response', user))
 
     def handle_get_access_list(self, request: Request, conn):
