@@ -174,8 +174,8 @@ class FileEditor(ctk.CTkToplevel):
 
     def apply_changes(self, changes):
         cursor_index = self.text_area.index("insert")
-
         self.suppress_text_change = True
+
         try:
             for change in changes:
                 line = int(change['line']) + 1
@@ -194,12 +194,10 @@ class FileEditor(ctk.CTkToplevel):
             self.current_content = self.text_area.get("1.0", "end-1c")
             self.text_area.edit_modified(False)
         finally:
-            self.text_area.mark_set("insert", cursor_index)
-
+            # self.text_area.mark_set("insert", cursor_index)
             self.suppress_text_change = False
 
     def insert_text_preserve_cursor(self, insert_index, content):
-        # Get current cursor position
         cursor_index = self.text_area.index("insert")
 
         def index_to_tuple(index_str):
