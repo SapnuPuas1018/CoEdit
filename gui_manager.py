@@ -4,7 +4,7 @@ from files_gui import FileManagerApp
 from login_gui import LoginGui
 from request import Request
 from sign_up_gui import SignUpGui
-from client_new import Client
+from client import Client
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")

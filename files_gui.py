@@ -196,6 +196,12 @@ class FileManagerApp(ctk.CTk):
 
         self.access_vars[username] = (read_var, write_var)
 
+    def update_access_controls_layout(self):
+        new_row = len(self.access_vars) + 1
+        self.new_user_entry.grid(row=new_row, column=0, padx=10, pady=10)
+        self.add_user_btn.grid(row=new_row, column=1, padx=10, pady=10)
+        self.save_btn.grid(row=new_row + 1, columnspan=3, pady=15)
+
     def add_user(self, user: User):
         if user is None:
             messagebox.showerror("User Not Found", "No such user exists in the database.")
@@ -206,12 +212,10 @@ class FileManagerApp(ctk.CTk):
             return
 
         self.create_user_row(user.username, read_default=True, write_default=False)
-
-        new_row = len(self.access_vars) + 1
-        self.new_user_entry.grid(row=new_row, column=0, padx=10, pady=10)
-        self.save_btn.grid(row=new_row + 1, columnspan=3, pady=15)
-
+        self.update_access_controls_layout()
         self.new_user_entry.delete(0, "end")
+
+
 
     def save_changes(self):
         updated_access = []
@@ -268,15 +272,6 @@ class FileManagerApp(ctk.CTk):
         self.new_user_entry.grid(row=starting_row, column=0, padx=10, pady=10)
         self.add_user_btn.grid(row=starting_row, column=1, padx=10, pady=10)
         self.save_btn.grid(row=starting_row + 1, columnspan=3, pady=15)
-
-    def open_file(self, file: File, content: str):
-        if content is not None:
-            editor_window = FileEditor(self.client, file, self.my_user)
-            editor_window.title(file.filename)
-            editor_window.text_area.delete("1.0", "end")
-            editor_window.text_area.insert("1.0", content)
-        else:
-            messagebox.showinfo("no permission", "you dont have permissions for this file")
 
     def open_file(self, file: File, content: str):
         if content is not None:

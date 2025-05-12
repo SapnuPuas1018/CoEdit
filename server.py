@@ -1,6 +1,5 @@
 import socket
 import ssl
-import time
 from threading import Thread, Lock, Timer
 
 import protocol
@@ -175,7 +174,8 @@ class Server:
         for change in changes:
             line = change["line"]
             char = change["char"]
-            if line >= len(lines): continue
+            if line >= len(lines):
+                continue
             line_content = lines[line]
             if "delete" in change:
                 del_text = change["delete"]

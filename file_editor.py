@@ -6,7 +6,7 @@ import customtkinter as ctk
 import tkinter as tk
 
 import protocol
-from client_new import Client
+from client import Client
 from request import Request
 
 
