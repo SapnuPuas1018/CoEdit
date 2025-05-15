@@ -289,10 +289,8 @@ class FileManagerApp(ctk.CTk):
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
-            # Build the file path that will be used on the server
             file_path = os.path.join('CoEdit_users', self.my_user.username, new_name)
 
-            # Create a new File object with the given name, path, and other properties
             new_file = File(
                 filename=new_name,
                 owner=self.my_user,  # Assuming my_user holds the logged-in user

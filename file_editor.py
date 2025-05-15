@@ -188,8 +188,14 @@ class FileEditor(ctk.CTkToplevel):
         index = f"{line}.{char}"
 
         if 'delete' in change:
-            delete_len = len(change['delete'])
-            end_index = f"{line}.{char + delete_len}"
+            delete_text = change['delete']
+            lines = delete_text.split('\n')
+            if len(lines) == 1:
+                end_index = f"{line}.{char + len(delete_text)}"
+            else:
+                end_line = line + len(lines) - 1
+                end_char = len(lines[-1])
+                end_index = f"{end_line}.{end_char}"
             self.text_area.delete(index, end_index)
 
         if 'insert' in change:
@@ -232,9 +238,16 @@ class FileEditor(ctk.CTkToplevel):
         index = f"{line}.{char}"
 
         if 'insert' in change:
-            delete_len = len(change['insert'])
-            end_index = f"{line}.{char + delete_len}"
+            insert_text = change['insert']
+            lines = insert_text.split('\n')
+            if len(lines) == 1:
+                end_index = f"{line}.{char + len(insert_text)}"
+            else:
+                end_line = line + len(lines) - 1
+                end_char = len(lines[-1])
+                end_index = f"{end_line}.{end_char}"
             self.text_area.delete(index, end_index)
+
         elif 'delete' in change:
             self.text_area.insert(index, change['delete'])
 
