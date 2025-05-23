@@ -105,16 +105,14 @@ class UserDatabase:
 
     def get_file_content(self, user: User, file: File):
         """Retrieve the content of a file from disk if the user has read access."""
-        print('hi')
         with self.lock:
             # Check if the user has read access
             self.cursor.execute("""
                 SELECT can_read FROM file_access 
                 JOIN users ON file_access.user_id = users.id 
-                WHERE users.username = ? AND file_access.file_id = ?
-            """, (user.username, file.file_id))
+                WHERE users.id = ? AND file_access.file_id = ?
+            """, (user.user_id, file.file_id))
             access_result = self.cursor.fetchone()
-
             if not access_result or not access_result[0]:
                 return None  # User has no read access
 
@@ -126,10 +124,13 @@ class UserDatabase:
             path = result[0]
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    return f.read()
+                    file_content = f.read()
+                    print(f'get_file_content, path: {path}, file_content: {file_content}')
+                    return file_content or ''
             except FileNotFoundError:
                 return None
-        return None
+        print('no result')
+        return ''
 
     def save_file_content(self, user: User, file: File, content: str) -> bool:
         if not self.can_user_write(user, file):
@@ -145,7 +146,7 @@ class UserDatabase:
                 path = result[0]
                 try:
                     with open(path, "w", encoding="utf-8") as f:
-                        print('i opened the file')
+                        print(f'save to file, path: {path}, content: {content}')
                         f.write(content)
                     return True
                 except Exception as e:

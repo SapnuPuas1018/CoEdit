@@ -155,6 +155,7 @@ class Server:
         result = self.apply_changes(current_content, changes)
         updated_content = result["content"]
         changes = result["changes"]
+        print('updated_content: ' + updated_content)
 
         # Save new content to DB
         self.database.save_file_content(user, file, updated_content)
@@ -170,19 +171,45 @@ class Server:
             self.pending_changes[file.file_id][sender_conn].append((file, changes))
 
     def apply_changes(self, original: str, changes: list[dict]) -> dict:
+        print(f'apply_changes, original: {original}, changes: {changes}')
         lines = original.splitlines(keepends=True)
+
+        if not lines:
+            lines = [""]
+
         for change in changes:
             line = change["line"]
             char = change["char"]
-            if line >= len(lines):
-                continue
+
+            # Extend lines if needed
+            while line >= len(lines):
+                lines.append("")
+
             line_content = lines[line]
+
             if "delete" in change:
                 del_text = change["delete"]
-                lines[line] = line_content[:char] + line_content[char + len(del_text):]
-            if "insert" in change:
+                delete_len = len(del_text)
+
+                # Flatten the full text and compute the absolute delete position
+                full_text = ''.join(lines)
+                start_index = sum(len(lines[i]) for i in range(line)) + char
+                new_text = full_text[:start_index] + full_text[start_index + delete_len:]
+
+                # Rebuild lines from modified text
+                lines = new_text.splitlines(keepends=True)
+
+            elif "insert" in change:
                 ins_text = change["insert"]
-                lines[line] = line_content[:char] + ins_text + line_content[char:]
+
+                # Recalculate full_text after previous deletions
+                full_text = ''.join(lines)
+                start_index = sum(len(lines[i]) for i in range(line)) + char
+                new_text = full_text[:start_index] + ins_text + full_text[start_index:]
+
+                # Rebuild lines from modified text
+                lines = new_text.splitlines(keepends=True)
+
         return {"content": ''.join(lines), "changes": changes}
 
     def open_file(self, user: User, file: File, conn):

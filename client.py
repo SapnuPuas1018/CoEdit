@@ -5,7 +5,6 @@ import threading
 
 import protocol
 from request import Request
-from user import User
 
 HOST_NAME = '127.0.0.1'
 PORT = 8468

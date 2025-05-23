@@ -155,7 +155,6 @@ class FileEditor(ctk.CTkToplevel):
 
         # Send the changes to the server
         self.client.send_request(Request('file-content-update', [self.current_file, diff_dict, self.my_user]))
-        print('sending request')
 
     def get_diff_changes(self, old: str, new: str) -> list[dict[str,str]]:
         changes = []
