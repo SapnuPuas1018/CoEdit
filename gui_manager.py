@@ -72,10 +72,11 @@ class AuthApp(ctk.CTk):
         elif response.request_type == 'file-content':
             self.files_gui.open_file(response.data[0], response.data[1]) # response.data[0] = file: File, response.data[1] = content: str
         elif response.request_type == 'file-content-update':
-            print(response.data)
-            print(type(response.data))
             file, changes = response.data
             self.files_gui.apply_file_update(file, changes)
+        elif response.request_type == 'write-access-response':
+            file, write_access = response.data
+            self.files_gui.write_access_response(file, write_access)
 
 
     def show_login_page(self):

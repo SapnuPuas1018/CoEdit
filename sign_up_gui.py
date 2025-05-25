@@ -1,6 +1,6 @@
 from tkinter import messagebox
+import re
 import customtkinter as ctk
-
 from request import Request
 from user import User
 
@@ -62,3 +62,41 @@ class SignUpGui:
 
     def hide(self):
         self.signup_frame.pack_forget()
+
+    # def register_new_user(self):
+    #     first_name = self.first_name_entry.get()
+    #     last_name = self.last_name_entry.get()
+    #     username = self.new_username_entry.get()
+    #     password = self.new_password_entry.get()
+    #     confirm_password = self.confirm_password_entry.get()
+    #
+    #     if not self.all_fields_filled(first_name, last_name, username, password, confirm_password):
+    #         messagebox.showerror("Error", "All fields must be filled out")
+    #         return
+    #
+    #     if not self.passwords_match(password, confirm_password):
+    #         messagebox.showerror("Error", "Passwords do not match")
+    #         return
+    #
+    #     if not self.is_password_valid(password):
+    #         messagebox.showerror("Error", "Password must contain at least:\n"
+    #                                       "- One uppercase letter\n"
+    #                                       "- One lowercase letter\n"
+    #                                       "- One number\n"
+    #                                       "- Minimum length of 6 characters")
+    #         return
+    #
+    #     signup_result = User('', first_name, last_name, username, password)
+    #     print(signup_result)
+    #
+    #     self.client.send_request(Request('signup', signup_result))
+    #
+    # def all_fields_filled(self, *fields):
+    #     return all(fields)
+    #
+    # def passwords_match(self, password, confirm_password):
+    #     return password == confirm_password
+    #
+    # def is_password_valid(self, password):
+    #     # At least one lowercase, one uppercase, one digit, and 6+ characters
+    #     return bool(re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$', password))

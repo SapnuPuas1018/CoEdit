@@ -1,12 +1,10 @@
 import difflib
 import time
-from datetime import datetime
 
 import customtkinter as ctk
 import tkinter as tk
 
 import protocol
-from client import Client
 from request import Request
 
 
@@ -133,7 +131,17 @@ class FileEditor(ctk.CTkToplevel):
             pass  # Nothing to redo
             print('Nothing to redo')
 
-    def on_text_change(self, event):
+    def write_access_check(self):
+        # check if I have write access
+        self.client.send_request(Request('write-access-check', [self.current_file, self.my_user]))
+
+    def show_no_write_access_message(self):
+        self.no_access_box = ctk.CTkTextbox(self, height=30)
+        self.no_access_box.insert("1.0", "You do not have write access to this file.")
+        self.no_access_box.configure(state="disabled")
+        self.no_access_box.pack(pady=5, padx=5, fill="x")
+
+    def on_text_change(self, event): # , event, write_access
         if self.suppress_text_change:
             return
 
@@ -199,6 +207,7 @@ class FileEditor(ctk.CTkToplevel):
 
         if 'insert' in change:
             self.insert_text_preserve_cursor(index, change['insert'])
+            # self.insert_text_preserve_cursor(index, change['insert'])
 
     def apply_changes(self, changes):
         cursor_index = self.text_area.index("insert")

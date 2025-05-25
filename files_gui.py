@@ -215,8 +215,6 @@ class FileManagerApp(ctk.CTk):
         self.update_access_controls_layout()
         self.new_user_entry.delete(0, "end")
 
-
-
     def save_changes(self):
         updated_access = []
         for username, (read_var, write_var) in self.access_vars.items():
@@ -285,6 +283,13 @@ class FileManagerApp(ctk.CTk):
         editor = self.open_editors.get(file.file_id)
         if editor:
             editor.apply_changes(changes)
+
+    def write_access_response(self, file: File, write_access):
+        editor = self.open_editors.get(file.file_id)
+        if editor and write_access:
+            editor.on_text_change()
+        elif not write_access:
+            editor.show_no_write_access_message()
 
     def add_file(self):
         new_name = simpledialog.askstring("New File", "Enter file name:")

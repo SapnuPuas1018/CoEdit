@@ -47,28 +47,26 @@ class Server:
         """Send all pending changes and schedule next update"""
         try:
             with self.pending_changes_lock:
-                # Process each file's pending changes
                 for file_id, conn_changes in list(self.pending_changes.items()):
                     if file_id not in self.open_files:
-                        # File is no longer open by anyone
                         continue
 
-                    # For each sender connection with pending changes
                     for sender_conn, changes in list(conn_changes.items()):
                         if not changes:
                             continue
 
-                        # Get the file from the first change (they should all be for the same file)
                         file = changes[0][0]
-
-                        # Group all changes
                         all_changes = []
                         for _, change_list in changes:
                             all_changes.extend(change_list)
 
-                        # Broadcast to other connected clients
+                        # Broadcast to other clients with read access only
                         for user, conn in self.open_files.get(file_id, []):
-                            if conn != sender_conn:
+                            if conn == sender_conn:
+                                continue
+
+                            # Check read access from database
+                            if self.database.can_user_read_file(user, file):
                                 try:
                                     protocol.send(conn, Request('file-content-update', [file, all_changes]))
                                 except Exception as e:
@@ -76,8 +74,10 @@ class Server:
 
                 # Clear the pending changes
                 self.pending_changes.clear()
+
         except Exception as e:
             print(f"Error in send_batched_updates: {e}")
+
         finally:
             # Schedule the next update
             self.start_update_timer()
@@ -142,13 +142,26 @@ class Server:
             self.handle_check_user_exists(request, conn)
         elif request.request_type == 'update-access-table':
             self.handle_update_access_table(request, conn)
+        elif request.request_type == 'write-access-check':
+            self.handle_write_access_check(request, conn)
         elif request.request_type == 'file-content-update':
             self.handle_file_content_update(request, conn)
 
-    def handle_file_content_update(self, request: Request, sender_conn):
+    def handle_write_access_check(self, request: Request, conn):
+        file: File = request.data[0]
+        user: User = request.data[1]
+        write_access = self.database.check_write(user, file)
+        protocol.send(conn, Request('write-access-response', [file, write_access]))
+
+    def handle_file_content_update(self, request: Request, conn):
         file: File = request.data[0]
         changes: list[dict] = request.data[1]
         user: User = request.data[2]
+
+        # if not self.database.check_write(user, file):
+        #     #user cant write
+        #     protocol.send(conn, Request('no-write-access', None))
+        #     return
 
         current_content = self.database.get_file_content(user, file)
 
@@ -164,11 +177,11 @@ class Server:
             if file.file_id not in self.pending_changes:
                 self.pending_changes[file.file_id] = {}
 
-            if sender_conn not in self.pending_changes[file.file_id]:
-                self.pending_changes[file.file_id][sender_conn] = []
+            if conn not in self.pending_changes[file.file_id]:
+                self.pending_changes[file.file_id][conn] = []
 
             # Add these changes to the queue
-            self.pending_changes[file.file_id][sender_conn].append((file, changes))
+            self.pending_changes[file.file_id][conn].append((file, changes))
 
     def apply_changes(self, original: str, changes: list[dict]) -> dict:
         print(f'apply_changes, original: {original}, changes: {changes}')

@@ -103,6 +103,19 @@ class UserDatabase:
         except Exception as e:
             return False, f"Error saving file: {str(e)}"
 
+    def check_write(self, user: User, file: File):
+        with self.lock:
+            # Check if the user has read access
+            self.cursor.execute("""
+                SELECT can_write FROM file_access 
+                JOIN users ON file_access.user_id = users.id 
+                WHERE users.id = ? AND file_access.file_id = ?
+            """, (user.user_id, file.file_id))
+            access_result = self.cursor.fetchone()
+            if not access_result or not access_result[0]:
+                return False  # User has no write access
+            return True
+
     def get_file_content(self, user: User, file: File):
         """Retrieve the content of a file from disk if the user has read access."""
         with self.lock:
