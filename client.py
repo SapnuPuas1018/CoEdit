@@ -11,7 +11,17 @@ PORT = 8468
 
 
 class Client:
+    """
+    Handles the SSL connection to the server, manages sending requests,
+    receiving responses, and maintaining a client-side message queue.
+    """
     def __init__(self):
+        """
+        Initializes the Client instance by setting up an SSL context,
+        creating a socket, wrapping it with SSL, and preparing a queue
+        to store server responses.
+        """
+
         self.running = True
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.context.check_hostname = False
@@ -23,6 +33,13 @@ class Client:
         # self.my_user
 
     def connect(self):
+        """
+        Connects the client to the server over SSL and starts a background
+        thread to listen for incoming responses.
+
+        :raises Exception: If the connection fails.
+        """
+
         try:
             self.conn.connect((HOST_NAME, PORT))
             threading.Thread(target=self.listen, daemon=True).start()
@@ -30,6 +47,13 @@ class Client:
             print('failed to connect: ' + str(e))
 
     def listen(self):
+        """
+        Listens for incoming messages from the server in a loop and stores them
+        in the response queue. Runs in a separate thread.
+
+        This method handles exceptions gracefully and stops on errors.
+        """
+
         while self.running:
             try:
                 response = protocol.recv(self.conn)
@@ -40,16 +64,35 @@ class Client:
                 break
 
     def stop(self):
+        """
+        Stops the client by closing the connection and halting the listen loop.
+        """
+
         self.running = False
         self.conn.close()
 
     def send_request(self, request: Request):
+        """
+        Sends a request object to the server using the custom protocol.
+
+        :param request: The request object to send.
+        :type request: Request
+        :raises socket.error: If a socket-level error occurs while sending.
+        """
+
         try:
             protocol.send(self.conn, request)
         except socket.error as sock_err:
             print(sock_err)
 
     def get_response_nowait(self):
+        """
+        Retrieves a response from the queue without blocking.
+
+        :return: The response object if available, otherwise None.
+        :rtype: Any or None
+        """
+
         """Non-blocking check for new messages."""
         try:
             return self.response_queue.get_nowait()

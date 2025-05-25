@@ -10,7 +10,18 @@ ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
 class AuthApp(ctk.CTk):
+    """
+    Main application class for CoEdit, managing user authentication (login and signup),
+    client-server communication, and navigation to the file manager screen.
+
+    Inherits from:
+        ctk.CTk: CustomTkinter's main window class.
+    """
     def __init__(self):
+        """
+        Initializes the AuthApp window, sets up client connection, GUI components
+        for login, signup, and file management, and begins polling for server responses.
+        """
         super().__init__()
         self.signup_result = None
         self.title("CoEdit - login")
@@ -36,13 +47,22 @@ class AuthApp(ctk.CTk):
 
 
     def poll_client_response(self):
-        """Check for new responses every 100ms."""
+        """
+        Polls the client's response queue every 100ms to check for new messages
+        from the server. If a message is found, it is passed to the handler.
+        """
         response = self.client.get_response_nowait()
         if response:
             self.handle_response_change_state(response)
         self.after(100, self.poll_client_response)  # Schedule next poll
 
     def handle_response_change_state(self, response: Request):
+        """
+        Handles server responses and updates the application state accordingly.
+
+        :param response: The response object received from the server.
+        :type response: Request
+        """
         print(response.request_type)
         print(response.data)
         if response.request_type == 'signup-success' and response.data:
@@ -80,14 +100,23 @@ class AuthApp(ctk.CTk):
 
 
     def show_login_page(self):
+        """
+        Displays the login screen and hides the signup screen.
+        """
         self.login_gui.show()
         self.signup_gui.hide()
 
     def show_signup_page(self):
+        """
+        Displays the signup screen and hides the login screen.
+        """
         self.signup_gui.show()
         self.login_gui.hide()
 
     def show_files_page(self):
+        """
+        Displays the file manager interface and hides the login screen.
+        """
         self.login_gui.hide()
         self.files_gui.show()
 

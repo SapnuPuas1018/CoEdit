@@ -7,6 +7,12 @@ from user import User
 
 class SignUpGui:
     def __init__(self, gui_manager):
+        """
+        Initializes the sign-up GUI with input fields and navigation buttons.
+
+        :param gui_manager: The GUI manager that controls navigation and provides client and container objects.
+        :type gui_manager: object
+        """
         self.gui_manager = gui_manager
         self.client = gui_manager.client
         self.container = gui_manager.container
@@ -38,6 +44,12 @@ class SignUpGui:
 
 
     def register_new_user(self):
+        """
+        Registers a new user by validating form fields and sending a signup request to the server.
+
+        :return: None
+        :rtype: None
+        """
         first_name = self.first_name_entry.get()
         last_name = self.last_name_entry.get()
         username = self.new_username_entry.get()
@@ -58,9 +70,21 @@ class SignUpGui:
         self.client.send_request(Request('signup', signup_result))
 
     def show(self):
+        """
+        Displays the signup frame on the GUI.
+
+        :return: None
+        :rtype: None
+        """
         self.signup_frame.pack()
 
     def hide(self):
+        """
+        Hides the signup frame from the GUI.
+
+        :return: None
+        :rtype: None
+        """
         self.signup_frame.pack_forget()
 
     # def register_new_user(self):

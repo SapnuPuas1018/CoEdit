@@ -1,8 +1,31 @@
 
 
 class User:
+    """
+    Represents a user with basic information and file management capabilities.
+    """
     def __init__(self, user_id, first_name, last_name,username: str, password: str):
-        """Initialize a user with a name, password, and an empty list of files."""
+        """
+        Initializes a User object with identification, credentials, and an empty file dictionary.
+
+        :param user_id: Unique identifier for the user
+        :type user_id: Any
+
+        :param first_name: First name of the user
+        :type first_name: Any
+
+        :param last_name: Last name of the user
+        :type last_name: Any
+
+        :param username: The user's username
+        :type username: str
+
+        :param password: The user's password (Note: should be hashed in production)
+        :type password: str
+
+        :return: None
+        :rtype: None
+        """
         self.user_id = user_id
         self.first_name = first_name
         self.last_name = last_name
@@ -11,42 +34,79 @@ class User:
         self.files = {}  # Dictionary to store files (key: filename, value: content)
 
     def add_file(self, filename: str, content: str):
-        """Add a new text file to the user's file collection."""
+        """
+        Adds a new file to the user's file list.
+
+        :param filename: Name of the file to add
+        :type filename: str
+
+        :param content: Content of the file
+        :type content: str
+
+        :return: A message indicating success or if the file already exists
+        :rtype: str
+        """
         if filename in self.files:
             return f"File '{filename}' already exists."
         self.files[filename] = content
         return f"File '{filename}' added successfully."
 
     def remove_file(self, filename: str):
-        """Remove a file from the user's collection."""
+        """
+        Removes a file from the user's file list if it exists.
+
+        :param filename: Name of the file to remove
+        :type filename: str
+
+        :return: A message indicating success or that the file was not found
+        :rtype: str
+        """
         if filename in self.files:
             del self.files[filename]
             return f"File '{filename}' removed successfully."
         return f"File '{filename}' not found."
 
     def get_file(self, filename: str):
-        """Retrieve the content of a specific file."""
+        """
+        Retrieves the content of a file by filename.
+
+        :param filename: Name of the file to retrieve
+        :type filename: str
+
+        :return: The content of the file or an error message if not found
+        :rtype: str
+        """
         return self.files.get(filename, "File not found.")
 
     def list_files(self):
-        """Return a list of all file names."""
+        """
+        Lists all filenames stored by the user.
+
+        :return: A list of filenames
+        :rtype: list[str]
+        """
         return list(self.files.keys())
 
     def verify_password(self, password: str):
-        """Verify if the given password matches the user's password (insecure method, just for demo)."""
+        """
+        Verifies if the provided password matches the user's password.
+
+        :param password: The password to verify
+        :type password: str
+
+        :return: True if the password matches, False otherwise
+        :rtype: bool
+        """
         return self.password == password  # In real cases, use hashing!
 
     def __repr__(self):
+        """
+        Returns a string representation of the user including their details and file names.
+
+        :return: A string describing the user
+        :rtype: str
+        """
         return f'user_id: {self.user_id}, first name : {self.first_name}, last name : {self.last_name}, username : {self.username}, password : {self.password}, files names : {self.list_files()}'
 
 if __name__ == '__main__':
-# Example usage:
-        pass
-#     user1 = User('John','Doe',"jd123", "securepassword123")
-#     print(user1.add_file("notes.txt", "This is a sample text file."))
-#     print(user1.add_file("todo.txt", "Buy milk\nComplete project."))
-#     print(user1.list_files())
-#     print(user1.get_file("notes.txt"))
-#     print(user1.remove_file("todo.txt"))
-#     print(user1.list_files())
-#     print(user1)
+    pass

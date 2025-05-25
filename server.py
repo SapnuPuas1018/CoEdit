@@ -18,6 +18,12 @@ UPDATE_INTERVAL = 0.8  # 800ms
 
 class Server:
     def __init__(self):
+        """
+        Initializes the Server instance by setting up SSL context, server socket,
+        database connection, and data structures for managing open files and pending changes.
+        Also starts the periodic update timer.
+        """
+
         self.open_files = {}
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(CERT_FILE, KEY_FILE)
@@ -38,13 +44,23 @@ class Server:
         self.start_update_timer()
 
     def start_update_timer(self):
-        """Start a timer that sends batched updates every UPDATE_INTERVAL seconds"""
+        """
+        Start a timer that triggers the sending of batched file content updates every UPDATE_INTERVAL seconds.
+
+        :return: None
+        :rtype: None
+        """
         self.update_timer = Timer(UPDATE_INTERVAL, self.send_batched_updates)
         self.update_timer.daemon = True  # Allow the program to exit even if timer is running
         self.update_timer.start()
 
     def send_batched_updates(self):
-        """Send all pending changes and schedule next update"""
+        """
+                Send all pending file content changes to appropriate clients with read access, and schedule the next update.
+
+                :return: None
+                :rtype: None
+        """
         try:
             with self.pending_changes_lock:
                 for file_id, conn_changes in list(self.pending_changes.items()):
@@ -83,6 +99,12 @@ class Server:
             self.start_update_timer()
 
     def start_server(self):
+        """
+        Start the server to listen for incoming SSL connections and spawn a new thread for each client.
+
+        :return: None
+        :rtype: None
+        """
         while True:
             conn, addr = self.s_sock.accept()
             print(f'received a connection from {conn}, {addr}')
@@ -91,6 +113,13 @@ class Server:
             self.thread_list.append(thread)
 
     def listen(self, conn):
+        """
+                Continuously listen for requests from a specific client and delegate request handling.
+
+                :param conn: SSL-wrapped socket connection with the client
+                :type conn: ssl.SSLSocket
+
+        """
         try:
             while True:
                 msg = protocol.recv(conn)
@@ -103,6 +132,15 @@ class Server:
             self.cleanup_connection(conn)
 
     def cleanup_connection(self, conn):
+        """
+        Clean up all references to a disconnected client connection from open files and pending changes.
+
+        :param conn: The client connection to clean up
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         # Remove connection from open_files
         for file_id in list(self.open_files):
             self.open_files[file_id] = [(u, c) for u, c in self.open_files[file_id] if c != conn]
@@ -118,6 +156,17 @@ class Server:
                     del self.pending_changes[file_id]
 
     def handle_request(self, request: Request, conn):
+        """
+        Route a received request to the appropriate handler function based on its type.
+
+        :param request: The incoming request object
+        :type request: Request
+        :param conn: The SSL-wrapped socket connection with the client
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         print(f"received from client : {request}")
         if request.request_type == 'signup':
             self.handle_signup(request, conn)
@@ -148,12 +197,34 @@ class Server:
             self.handle_file_content_update(request, conn)
 
     def handle_write_access_check(self, request: Request, conn):
+        """
+        Check if a user has write access to a file and send the result back to the client.
+
+        :param request: Request object containing the file and user
+        :type request: Request
+        :param conn: SSL connection to the client
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         file: File = request.data[0]
         user: User = request.data[1]
         write_access = self.database.check_write(user, file)
         protocol.send(conn, Request('write-access-response', [file, write_access]))
 
     def handle_file_content_update(self, request: Request, conn):
+        """
+        Apply received changes to a file, save the updated content to the database, and queue the changes for broadcasting.
+
+        :param request: Request containing the file, list of changes, and the user
+        :type request: Request
+        :param conn: SSL-wrapped socket connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         file: File = request.data[0]
         changes: list[dict] = request.data[1]
         user: User = request.data[2]
@@ -184,6 +255,17 @@ class Server:
             self.pending_changes[file.file_id][conn].append((file, changes))
 
     def apply_changes(self, original: str, changes: list[dict]) -> dict:
+        """
+        Apply a list of insert or delete operations to the original text content.
+
+        :param original: The original content of the file
+        :type original: str
+        :param changes: A list of dictionaries representing text changes
+        :type changes: list[dict]
+
+        :return: A dictionary with updated content and changes applied
+        :rtype: dict
+        """
         print(f'apply_changes, original: {original}, changes: {changes}')
         lines = original.splitlines(keepends=True)
 
@@ -226,6 +308,19 @@ class Server:
         return {"content": ''.join(lines), "changes": changes}
 
     def open_file(self, user: User, file: File, conn):
+        """
+        Retrieve and send the content of a file to a client, and track the user connection for future updates.
+
+        :param user: The user requesting to open the file
+        :type user: User
+        :param file: The file to be opened
+        :type file: File
+        :param conn: The connection associated with the user
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         content = self.database.get_file_content(user, file)
 
         # Track users and their connection
@@ -238,6 +333,17 @@ class Server:
         protocol.send(conn, Request('file-content', [file, content]))
 
     def handle_update_access_table(self, request: Request, conn):
+        """
+                Update the access table for a file based on the provided new access list.
+
+                :param request: Request containing the file and updated access list
+                :type request: Request
+                :param conn: The client connection
+                :type conn: ssl.SSLSocket
+
+                :return: None
+                :rtype: None
+        """
         file = request.data[0]
         updated_access = request.data[1]
 
@@ -262,16 +368,49 @@ class Server:
             protocol.send(conn, Request('update-access-response', False))
 
     def handle_check_user_exists(self, request: Request, conn):
+        """
+        Check if a user exists by username and respond to the client with the result.
+
+        :param request: Request containing the username to check
+        :type request: Request
+        :param conn: The client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         username = request.data
         user = self.database.check_if_user_exists_by_username(username)  # returns None if not found
         protocol.send(conn, Request('user-exists-response', user))
 
     def handle_get_access_list(self, request: Request, conn):
+        """
+        Retrieve and send the list of users who have access to a specific file.
+
+        :param request: Request containing the file
+        :type request: Request
+        :param conn: The client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         file: File = request.data
         file_accesses = self.database.get_users_with_access_to_file(file)
         protocol.send(conn, Request('file-access', file_accesses))
 
     def handle_signup(self, request: Request, conn):
+        """
+        Handle user sign-up by adding them to the database and notifying the client.
+
+        :param request: Request containing the user object
+        :type request: Request
+        :param conn: Client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         user: User = request.data
         print(type(user))
         print(user)
@@ -279,6 +418,17 @@ class Server:
         protocol.send(conn, Request('signup-success', already_exists))
 
     def handle_login(self, request: Request, conn):
+        """
+        Authenticate a user and respond to the client with success or failure, and send accessible files if successful.
+
+        :param request: Request containing the user object
+        :type request: Request
+        :param conn: The client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         user: User = request.data
         success, user_id = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
@@ -288,11 +438,33 @@ class Server:
             self.get_user_files(user, conn)
 
     def get_user_files(self, user: User, conn):
+        """
+        Retrieve and send the list of files accessible to a user.
+
+        :param user: The user requesting their files
+        :type user: User
+        :param conn: Client connection to send the file list
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         files: list[File] = self.database.get_readable_files_per_user(user)
         print(files)
         protocol.send(conn, Request("file-list", files))
 
     def handle_add_file(self, request, conn):
+        """
+        Handle the creation of a new file and set the appropriate access rights.
+
+        :param request: Request containing the file and user
+        :type request: Request
+        :param conn: Client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         file = request.data[0]
         user = request.data[1]
 
@@ -309,6 +481,17 @@ class Server:
             protocol.send(conn, Request('add-file-success', [False, ]))
 
     def handle_file_rename(self, request: Request, conn):
+        """
+        Rename a file in the database and notify the client of success or failure.
+
+        :param request: Request containing the file and new name
+        :type request: Request
+        :param conn: Client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
         file = request.data[0]
         new_name = request.data[1]
         success = self.database.rename_file(file, new_name)

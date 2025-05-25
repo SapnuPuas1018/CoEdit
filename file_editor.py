@@ -1,15 +1,24 @@
 import difflib
 import time
-
 import customtkinter as ctk
 import tkinter as tk
-
-import protocol
 from request import Request
 
 
 class FileEditor(ctk.CTkToplevel):
     def __init__(self, client, file, my_user, content):
+        """
+        Initialize the FileEditor window.
+
+        :param client: Client object for sending requests
+        :type client: object
+        :param file: The file name or file ID being edited
+        :type file: str
+        :param my_user: The username of the current user
+        :type my_user: str
+        :param content: Initial content of the file
+        :type content: str
+        """
         super().__init__()
         self.title("CoEdit")
         self.geometry("800x600")
@@ -66,6 +75,9 @@ class FileEditor(ctk.CTkToplevel):
         self.bind("<Control-y>", self.redo)
 
     def find_text(self):
+        """
+        Search for the entered text in the text area and highlight all matches.
+        """
         self.text_area.tag_remove("highlight", "1.0", "end")
         search_text = self.search_entry.get()
         self.match_positions = []
@@ -92,6 +104,12 @@ class FileEditor(ctk.CTkToplevel):
                 self.match_label.configure(text="No matches")
 
     def show_match(self, index):
+        """
+        Highlight and scroll to the specific match.
+
+        :param index: Index of the match to show
+        :type index: int
+        """
         if not self.match_positions:
             return
 
@@ -104,18 +122,30 @@ class FileEditor(ctk.CTkToplevel):
         self.match_label.configure(text=f"Match {index + 1} of {len(self.match_positions)}")
 
     def next_match(self):
+        """
+        Highlight and show the next text match in the search results.
+        """
         if not self.match_positions:
             return
         self.current_match_index = (self.current_match_index + 1) % len(self.match_positions)
         self.show_match(self.current_match_index)
 
     def prev_match(self):
+        """
+        Highlight and show the previous text match in the search results.
+        """
         if not self.match_positions:
             return
         self.current_match_index = (self.current_match_index - 1) % len(self.match_positions)
         self.show_match(self.current_match_index)
 
     def undo(self, event=None):
+        """
+        Undo the last text modification.
+
+        :param event: Event triggering undo (usually keybinding)
+        :type event: tkinter.Event or None
+        """
         try:
             print('undo')
             self.text_area._textbox.edit_undo()
@@ -124,6 +154,12 @@ class FileEditor(ctk.CTkToplevel):
             print('Nothing to undo')
 
     def redo(self, event=None):
+        """
+        Redo the previously undone modification.
+
+        :param event: Event triggering redo (usually keybinding)
+        :type event: tkinter.Event or None
+        """
         try:
             print('redo')
             self.text_area._textbox.edit_redo()
@@ -132,16 +168,27 @@ class FileEditor(ctk.CTkToplevel):
             print('Nothing to redo')
 
     def write_access_check(self):
-        # check if I have write access
+        """
+        Send a request to the server to check if the user has write access to the file.
+        """
         self.client.send_request(Request('write-access-check', [self.current_file, self.my_user]))
 
     def show_no_write_access_message(self):
+        """
+        Display a message box notifying the user that they do not have write access.
+        """
         self.no_access_box = ctk.CTkTextbox(self, height=30)
         self.no_access_box.insert("1.0", "You do not have write access to this file.")
         self.no_access_box.configure(state="disabled")
         self.no_access_box.pack(pady=5, padx=5, fill="x")
 
-    def on_text_change(self, event): # , event, write_access
+    def on_text_change(self, event):
+        """
+        Handle the event when the text content changes. Generates and sends diffs.
+
+        :param event: Event triggered when the text is modified
+        :type event: tkinter.Event
+        """
         if self.suppress_text_change:
             return
 
@@ -165,6 +212,17 @@ class FileEditor(ctk.CTkToplevel):
         self.client.send_request(Request('file-content-update', [self.current_file, diff_dict, self.my_user]))
 
     def get_diff_changes(self, old: str, new: str) -> list[dict[str,str]]:
+        """
+        Generate a list of text changes (diffs) between old and new content.
+
+        :param old: Original text content
+        :type old: str
+        :param new: Updated text content
+        :type new: str
+
+        :return: List of change dictionaries
+        :rtype: list[dict[str, str]]
+        """
         changes = []
 
         sm = difflib.SequenceMatcher(None, old, new)
@@ -190,6 +248,12 @@ class FileEditor(ctk.CTkToplevel):
         return changes
 
     def apply_single_change(self, change):
+        """
+        Apply a single change (insert or delete) to the text widget.
+
+        :param change: Dictionary representing a text change
+        :type change: dict
+        """
         line = int(change['line']) + 1
         char = int(change['char'])
         index = f"{line}.{char}"
@@ -210,6 +274,12 @@ class FileEditor(ctk.CTkToplevel):
             # self.insert_text_preserve_cursor(index, change['insert'])
 
     def apply_changes(self, changes):
+        """
+        Apply a list of changes to the text widget, handling future reversion and reapplication.
+
+        :param changes: List of change dictionaries to apply
+        :type changes: list[dict]
+        """
         cursor_index = self.text_area.index("insert")
         self.suppress_text_change = True
 
@@ -241,6 +311,12 @@ class FileEditor(ctk.CTkToplevel):
             self.suppress_text_change = False
 
     def revert_change(self, change):
+        """
+        Revert a single change by undoing its insert or delete.
+
+        :param change: Change dictionary to revert
+        :type change: dict
+        """
         line = int(change['line']) + 1
         char = int(change['char'])
         index = f"{line}.{char}"
@@ -260,6 +336,14 @@ class FileEditor(ctk.CTkToplevel):
             self.text_area.insert(index, change['delete'])
 
     def insert_text_preserve_cursor(self, insert_index, content):
+        """
+        Insert text at a specified index without altering the cursor position unnecessarily.
+
+        :param insert_index: Index in the text widget where the content should be inserted
+        :type insert_index: str
+        :param content: The text content to insert
+        :type content: str
+        """
         cursor_index = self.text_area.index("insert")
 
         def index_to_tuple(index_str):

@@ -9,6 +9,12 @@ from user_access import UserAccess
 
 class UserDatabase:
     def __init__(self, db_name="users.db"):
+        """
+        Initialize the UserDatabase with a SQLite connection and create tables if they do not exist.
+
+        :param db_name: Name of the SQLite database file
+        :type db_name: str
+        """
         """Initialize SQLite database connection with multi-threading support."""
         self.conn = sqlite3.connect(db_name, check_same_thread=False)  # Allows access across threads
         self.cursor = self.conn.cursor()
@@ -16,7 +22,9 @@ class UserDatabase:
         self.create_tables()
 
     def create_tables(self):
-        """Create tables for users, files, and access rights."""
+        """
+        Create the required database tables for users, files, and file access permissions.
+        """
         with self.lock:
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
@@ -52,7 +60,15 @@ class UserDatabase:
             self.conn.commit()
 
     def add_user(self, user: User):
-        """Add a new user to the database."""
+        """
+        Add a new user to the database.
+
+        :param user: The User object containing user information
+        :type user: User
+
+        :return: True if the user was added successfully, False otherwise
+        :rtype: bool
+        """
         with self.lock:
             try:
                 self.cursor.execute(
@@ -66,15 +82,34 @@ class UserDatabase:
                 return False
 
     def verify_user(self, user: User):
-        """Verify user login credentials."""
+        """
+        Verify user credentials during login.
+
+        :param user: The User object containing username and password
+        :type user: User
+
+        :return: Tuple of (login_successful, user_id)
+        :rtype: tuple[bool, int or None]
+        """
         user_id = self.get_user_id(user.username)
         with self.lock:
             self.cursor.execute("SELECT id FROM users WHERE id=? AND password=?", (user_id, user.password))
             return self.cursor.fetchone() is not None, user_id
 
     def add_file(self, user: User, file: File, content: str):
-        """Save file content to disk and record its path in the database."""
+        """
+        Add a file to the database and save its content to disk.
 
+        :param user: The owner User object
+        :type user: User
+        :param file: The File object to be saved
+        :type file: File
+        :param content: Content to write to the file
+        :type content: str
+
+        :return: Tuple indicating success and a message
+        :rtype: tuple[bool, str]
+        """
         if not user.user_id:
             return False, "User not found."
 
@@ -104,6 +139,17 @@ class UserDatabase:
             return False, f"Error saving file: {str(e)}"
 
     def check_write(self, user: User, file: File):
+        """
+        Check if the user has write access to the given file.
+
+        :param user: The User object
+        :type user: User
+        :param file: The File object
+        :type file: File
+
+        :return: True if the user has write access, False otherwise
+        :rtype: bool
+        """
         with self.lock:
             # Check if the user has read access
             self.cursor.execute("""
@@ -117,7 +163,17 @@ class UserDatabase:
             return True
 
     def get_file_content(self, user: User, file: File):
-        """Retrieve the content of a file from disk if the user has read access."""
+        """
+        Retrieve file content from disk if the user has read access.
+
+        :param user: The User object
+        :type user: User
+        :param file: The File object
+        :type file: File
+
+        :return: The content of the file or None if inaccessible
+        :rtype: str or None
+        """
         with self.lock:
             # Check if the user has read access
             self.cursor.execute("""
@@ -146,6 +202,17 @@ class UserDatabase:
         return ''
 
     def save_file_content(self, user: User, file: File, content: str) -> bool:
+        """
+        Retrieve file content from disk if the user has read access.
+
+        :param user: The User object
+        :type user: User
+        :param file: The File object
+        :type file: File
+
+        :return: The content of the file or None if inaccessible
+        :rtype: str or None
+        """
         if not self.can_user_write(user, file):
             print("User does not have write access")
             return False
@@ -168,7 +235,17 @@ class UserDatabase:
         return False
 
     def get_file_path(self, user: User, filename):
-        """Retrieve the file path instead of content."""
+        """
+        Get the file path for a user's file based on the filename.
+
+        :param user: The User object
+        :type user: User
+        :param filename: The name of the file
+        :type filename: str
+
+        :return: Full path to the file or None if not found
+        :rtype: str or None
+        """
         owner_id = self.get_user_id(user.username)
         if owner_id:
             with self.lock:
@@ -180,7 +257,17 @@ class UserDatabase:
         return None
 
     def remove_file(self, user_id, file_id):
-        """Delete a file from the database and disk using file_id and user_id."""
+        """
+        Remove a file from both the database and disk.
+
+        :param user_id: ID of the file owner
+        :type user_id: int
+        :param file_id: ID of the file to be removed
+        :type file_id: str
+
+        :return: Tuple of success status and a message
+        :rtype: tuple[bool, str]
+        """
         with self.lock:
             # Confirm the file belongs to the user
             self.cursor.execute("SELECT path FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
@@ -202,13 +289,30 @@ class UserDatabase:
         return False, "File not found or access denied."
 
     def get_user_id(self, username):
-        """Retrieve user ID from username."""
+        """
+        Retrieve the user ID from a username.
+
+        :param username: The username to search for
+        :type username: str
+
+        :return: User ID or None if not found
+        :rtype: int or None
+        """
         with self.lock:
             self.cursor.execute("SELECT id FROM users WHERE username=?", (username,))
             result = self.cursor.fetchone()
             return result[0] if result else None
 
     def check_if_user_exists_by_username(self, username: str):
+        """
+        Check if a user exists by username and return the User object if found.
+
+        :param username: Username to check
+        :type username: str
+
+        :return: User object if found, else None
+        :rtype: User or None
+        """
         self.cursor.execute("""
             SELECT id, first_name, last_name, username, password
             FROM users
@@ -222,6 +326,17 @@ class UserDatabase:
             return None
 
     def can_user_read_file(self, user: User, file: File) -> bool:
+        """
+        Check if the user has read access to a specific file.
+
+        :param user: The User object
+        :type user: User
+        :param file: The File object
+        :type file: File
+
+        :return: True if user can read the file, False otherwise
+        :rtype: bool
+        """
         with self.lock:
             self.cursor.execute(
                 "SELECT can_read FROM file_access WHERE user_id=? AND file_id=?", (user.user_id, file.file_id)
@@ -229,18 +344,18 @@ class UserDatabase:
             result = self.cursor.fetchone()
             return result[0] if result else False
 
-
-    # def can_user_write_file(self, user: User, file: File) -> bool:
-    #     user_id = self.get_user_id(user.username)
-    #     file_id = file.file_id
-    #     with self.lock:
-    #         self.cursor.execute(
-    #             "SELECT can_write FROM file_access WHERE user_id=? AND file_id=?", (user_id, file_id)
-    #         )
-    #         result = self.cursor.fetchone()
-    #         return result[0] if result else False
-
     def can_user_write(self, user: User, file: File) -> bool:
+        """
+        Check if a user can write to a file (as owner or shared write access).
+
+        :param user: The User object
+        :type user: User
+        :param file: The File object
+        :type file: File
+
+        :return: True if the user can write to the file, False otherwise
+        :rtype: bool
+        """
         with self.lock:
             self.cursor.execute("""
                 SELECT 1 FROM files 
@@ -257,7 +372,15 @@ class UserDatabase:
             return bool(result and result[0])
 
     def get_readable_files_per_user(self, user: User) -> list[File]:
-        """Retrieve all files the user has read access to as File objects with owner as a User object."""
+        """
+        Get all files the user has read access to.
+
+        :param user: The User object
+        :type user: User
+
+        :return: List of File objects the user can read
+        :rtype: list[File]
+        """
         with self.lock:
             self.cursor.execute("""
                 SELECT f.id, f.filename, f.path, f.creation_date,
@@ -290,7 +413,15 @@ class UserDatabase:
             return readable_files
 
     def get_user_by_id(self, user_id: int):
-        """Retrieve a user object from the database using their ID."""
+        """
+        Get a User object by their ID.
+
+        :param user_id: The user's ID
+        :type user_id: int
+
+        :return: User object if found, otherwise None
+        :rtype: User or None
+        """
         with self.lock:
             self.cursor.execute("""
                 SELECT id, first_name, last_name, username
@@ -309,7 +440,21 @@ class UserDatabase:
             return None
 
     def add_file_access(self, user: User, file: File, can_read=False, can_write=False):
-        """Grant or update read/write access to a file for a specific user."""
+        """
+        Grant file access rights to a user.
+
+        :param user: The User object receiving access
+        :type user: User
+        :param file: The File object to share
+        :type file: File
+        :param can_read: Permission to read the file
+        :type can_read: bool
+        :param can_write: Permission to write to the file
+        :type can_write: bool
+
+        :return: True if access was granted successfully
+        :rtype: bool
+        """
         file_id = file.file_id
         user_id = self.get_user_id(user.username)
         if user_id is None:
@@ -326,6 +471,21 @@ class UserDatabase:
             return True
 
     def change_file_access(self, user: User, file: File, can_read: bool, can_write: bool):
+        """
+        Change access rights to a file for a user.
+
+        :param user: The User object
+        :type user: User
+        :param file: The File object
+        :type file: File
+        :param can_read: Updated read access
+        :type can_read: bool
+        :param can_write: Updated write access
+        :type can_write: bool
+
+        :return: True if access rights were updated or inserted successfully
+        :rtype: bool
+        """
         file_id = file.file_id
         user_id = self.get_user_id(user.username)
         if user_id is None:
@@ -357,7 +517,13 @@ class UserDatabase:
 
     def get_users_with_access_to_file(self, file: File) -> list[UserAccess]:
         """
-        Retrieve a list of UserAccess objects for a specific file, including all users who have access to it.
+        Retrieve a list of all users who have access to a file, including read and write permissions.
+
+        :param file: The File object
+        :type file: File
+
+        :return: List of UserAccess objects
+        :rtype: list[UserAccess]
         """
         with self.lock:
             self.cursor.execute("""
@@ -386,7 +552,17 @@ class UserDatabase:
             return user_accesses
 
     def rename_file(self, file: File, new_filename: str) -> bool:
-        """Rename a file by updating both the filename on disk and in the database."""
+        """
+        Rename a file both on disk and in the database.
+
+        :param file: The File object to rename
+        :type file: File
+        :param new_filename: New filename to assign
+        :type new_filename: str
+
+        :return: True if renamed successfully, False otherwise
+        :rtype: bool
+        """
         with self.lock:
             # Get current file path
             self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
@@ -413,7 +589,15 @@ class UserDatabase:
                 return False
 
     def get_user_full_name(self, username):
-        """Retrieve the full name of a user."""
+        """
+        Retrieve a user's full name using their username.
+
+        :param username: The username of the user
+        :type username: str
+
+        :return: Full name as a string or None if user not found
+        :rtype: str or None
+        """
         with self.lock:
             self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
             result = self.cursor.fetchone()
