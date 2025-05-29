@@ -396,6 +396,10 @@ class FileManagerApp(ctk.CTk):
 
         self.file = user_access_list[0].file
 
+        # Close existing access window if it's open
+        if hasattr(self, 'access_window') and self.access_window.winfo_exists():
+            self.access_window.destroy()
+
         self.access_window = ctk.CTkToplevel(self)
         self.access_window.title(f"Manage Access - {self.file.filename}")
         self.access_window.geometry("500x600")
