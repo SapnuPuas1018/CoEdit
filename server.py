@@ -192,6 +192,41 @@ class Server:
             self.handle_write_access_check(request, conn)
         elif request.request_type == 'file-content-update':
             self.handle_file_content_update(request, conn)
+        elif request.request_type == 'logout':
+            self.handle_logout(request.data, conn)
+
+    def handle_logout(self, user: User, conn):
+        """
+        Handle user logout: clean up all user-related state but keep the connection open.
+
+        :param user: The user who is logging out
+        :type user: User
+        :param conn: The SSL-wrapped connection still in use
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        :rtype: None
+        """
+        print(f"User {user.username} is logging out...")
+
+        # Clean up open_files
+        for file_id in list(self.open_files):
+            self.open_files[file_id] = [(u, c) for u, c in self.open_files[file_id] if c != conn]
+            if not self.open_files[file_id]:
+                del self.open_files[file_id]
+
+        # Clean up pending_changes
+        with self.pending_changes_lock:
+            for file_id in list(self.pending_changes):
+                if conn in self.pending_changes[file_id]:
+                    del self.pending_changes[file_id][conn]
+                if not self.pending_changes[file_id]:
+                    del self.pending_changes[file_id]
+
+        print(f"User {user.username} logged out and cleaned up.")
+
+        # Optionally: Send logout confirmation to client
+        protocol.send(conn, Request('logout_success', True))
 
     def handle_write_access_check(self, request: Request, conn):
         """

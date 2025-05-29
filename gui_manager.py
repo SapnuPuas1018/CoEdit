@@ -95,7 +95,16 @@ class GuiManager(ctk.CTk):
         elif response.request_type == 'write-access-response':
             file, write_access = response.data
             self.files_gui.write_access_response(file, write_access)
+        elif response.request_type == 'logout_success':
+            success = response.data
+            print('success')
+            print(success)
+            if success:
+                self.return_to_login_page()
 
+    def return_to_login_page(self):
+        self.files_gui.hide()
+        self.login_gui.show()
 
     def show_login_page(self):
         """

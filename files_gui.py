@@ -111,7 +111,7 @@ class FileManagerApp(ctk.CTk):
         self.greeting_label = ctk.CTkLabel(top_bar, text=f'hello {self.my_user.first_name} {self.my_user.last_name}', font=ctk.CTkFont(size=16), text_color= 'grey')
         self.greeting_label.pack(side="left", padx=10)
 
-        self.disconnect_btn = ctk.CTkButton(top_bar, text="Disconnect", command=self.disconnect)
+        self.disconnect_btn = ctk.CTkButton(top_bar, text="logout", command=self.logout)
         self.disconnect_btn.pack(side="left")
 
         self.add_file_btn = ctk.CTkButton(top_bar, text="+ New File", command=self.add_file)
@@ -526,16 +526,32 @@ class FileManagerApp(ctk.CTk):
             messagebox.showinfo("File Added", f"New file '{new_file.filename}' failed to be created.")
         self.search_files()
 
-    def disconnect(self):
+    def logout(self):
         """
-        Asks for confirmation and disconnects the user.
+            Handles user logout: clears user data, file lists, and UI widgets.
+            :return: None
+            """
+        # Notify server if needed
+        self.client.send_request(Request("logout", self.my_user))
+        self.clear_screen()
 
-        :return: None
-        :rtype: None
-        """
-        result = messagebox.askyesno("Disconnect", "Are you sure you want to disconnect?")
-        if result:
-            self.destroy()
+    def clear_screen(self):
+        # Clear user data
+        self.my_user = None
+        self.file_list = []
+        self.filtered_files = []
+        self.open_editors = {}
+
+        # Clear file display
+        for widget in self.file_frame.winfo_children():
+            widget.destroy()
+
+        # Clear top-level widgets if needed (optional)
+        for widget in self.files_frame.winfo_children():
+            widget.destroy()
+
+        # Hide or forget the main file UI frame (optional)
+        self.files_frame.pack_forget()
 
     def show(self):
         """
