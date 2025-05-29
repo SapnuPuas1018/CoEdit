@@ -1,5 +1,7 @@
 import os
 import tkinter
+from idlelib.colorizer import color_config
+from idlelib.configdialog import font_sample_text
 
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
@@ -33,9 +35,12 @@ class FileManagerApp(ctk.CTk):
 
         self.filtered_files = []
 
-        self.create_widgets()
         self.my_user = None
 
+    def initialize_user_interface(self, my_user):
+        self.my_user = my_user
+        self.create_widgets()
+        self.load_files()
 
 
     def load_files(self):
@@ -103,6 +108,9 @@ class FileManagerApp(ctk.CTk):
         top_bar = ctk.CTkFrame(self.files_frame)
         top_bar.pack(fill="x", padx=10, pady=10)
 
+        self.greeting_label = ctk.CTkLabel(top_bar, text=f'hello {self.my_user.first_name} {self.my_user.last_name}', font=ctk.CTkFont(size=16), text_color= 'grey')
+        self.greeting_label.pack(side="left", padx=10)
+
         self.disconnect_btn = ctk.CTkButton(top_bar, text="Disconnect", command=self.disconnect)
         self.disconnect_btn.pack(side="left")
 
@@ -117,6 +125,7 @@ class FileManagerApp(ctk.CTk):
             command=lambda: self.client.send_request(Request('refresh-files', self.my_user))
         )
         self.refresh_btn.pack(side="left", padx=5)
+
 
         self.sort_by = ctk.CTkOptionMenu(top_bar, values=["Name", "Owner", "Date"], command=self.sort_files)
         self.sort_by.set("Sort by")
@@ -181,7 +190,6 @@ class FileManagerApp(ctk.CTk):
         :return: None
         :rtype: None
         """
-        print(self.my_user)
         menu = tkinter.Menu(self, tearoff=0)
         menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
         if file.owner.user_id != self.my_user.user_id:
@@ -435,7 +443,7 @@ class FileManagerApp(ctk.CTk):
         :rtype: None
         """
         if content is not None:
-            editor_window = FileEditor(self.client, file, self.my_user, content)  # Pass content here
+            editor_window = FileEditor(self.client, file, self.my_user, content)
             editor_window.title(file.filename)
             self.open_editors[file.file_id] = editor_window
         else:

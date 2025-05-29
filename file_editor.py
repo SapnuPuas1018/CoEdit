@@ -13,7 +13,7 @@ class FileEditor(ctk.CTkToplevel):
         :param client: Client object for sending requests
         :type client: object
         :param file: The file name or file ID being edited
-        :type file: str
+        :type file: File
         :param my_user: The username of the current user
         :type my_user: str
         :param content: Initial content of the file

@@ -69,10 +69,8 @@ class GuiManager(ctk.CTk):
             self.show_login_page()
         elif response.request_type == 'login-success' and response.data[0]:
             self.my_user = response.data[1]
-            print(self.my_user)
+            self.files_gui.initialize_user_interface(self.my_user)
             self.show_files_page()
-            self.files_gui.load_files()
-            self.files_gui.my_user = self.my_user
         elif response.request_type == 'add-file-success':
             if not response.data[0]:
                 self.files_gui.add_file_refresh(False, None)
