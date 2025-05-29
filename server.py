@@ -465,6 +465,7 @@ class Server:
         success, user_id = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
         user.user_id = user_id
+        user.first_name, user.last_name = self.database.get_user_full_name(user.username)
         protocol.send(conn, Request('login-success', [success, user]))
         if success:
             self.get_user_files(user, conn)

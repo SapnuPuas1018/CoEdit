@@ -605,7 +605,7 @@ class UserDatabase:
         with self.lock:
             self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
             result = self.cursor.fetchone()
-            return f"{result[0]} {result[1]}" if result else None
+            return result[0],result[1] if result else None
 
     def close(self):
         """Close the database connection."""

@@ -21,7 +21,6 @@ class Client:
         creating a socket, wrapping it with SSL, and preparing a queue
         to store server responses.
         """
-
         self.running = True
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.context.check_hostname = False
@@ -39,7 +38,6 @@ class Client:
 
         :raises Exception: If the connection fails.
         """
-
         try:
             self.conn.connect((HOST_NAME, PORT))
             threading.Thread(target=self.listen, daemon=True).start()
@@ -53,7 +51,6 @@ class Client:
 
         This method handles exceptions gracefully and stops on errors.
         """
-
         while self.running:
             try:
                 response = protocol.recv(self.conn)
@@ -67,7 +64,6 @@ class Client:
         """
         Stops the client by closing the connection and halting the listen loop.
         """
-
         self.running = False
         self.conn.close()
 
@@ -79,7 +75,6 @@ class Client:
         :type request: Request
         :raises socket.error: If a socket-level error occurs while sending.
         """
-
         try:
             protocol.send(self.conn, request)
         except socket.error as sock_err:
@@ -92,13 +87,18 @@ class Client:
         :return: The response object if available, otherwise None.
         :rtype: Any or None
         """
-
-        """Non-blocking check for new messages."""
         try:
             return self.response_queue.get_nowait()
         except queue.Empty:
             return None
 
+    def disconnect(self):
+        try:
+            if self.conn:
+                self.stop()
+                print("Disconnected from server.")
+        except Exception as e:
+            print(f"Error during disconnect: {e}")
 
 
 if __name__ == "__main__":

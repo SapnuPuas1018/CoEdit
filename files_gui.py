@@ -1,7 +1,5 @@
 import os
 import tkinter
-from idlelib.colorizer import color_config
-from idlelib.configdialog import font_sample_text
 
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
@@ -228,7 +226,6 @@ class FileManagerApp(ctk.CTk):
             messagebox.showinfo("rename", 'rename was successful')
         else:
             messagebox.showerror("rename", 'rename was unsuccessful')
-        #     file.filename = new_name
         self.search_files()
 
     def delete_file(self, file):

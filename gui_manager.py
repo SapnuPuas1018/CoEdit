@@ -32,6 +32,8 @@ class GuiManager(ctk.CTk):
         self.container = ctk.CTkFrame(self)
         self.container.pack(expand=True, fill="both")
 
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         self.client = Client()
         self.client.connect()
 
@@ -97,8 +99,6 @@ class GuiManager(ctk.CTk):
             self.files_gui.write_access_response(file, write_access)
         elif response.request_type == 'logout_success':
             success = response.data
-            print('success')
-            print(success)
             if success:
                 self.return_to_login_page()
 
@@ -126,6 +126,21 @@ class GuiManager(ctk.CTk):
         """
         self.login_gui.hide()
         self.files_gui.show()
+
+    def on_closing(self):
+        """
+        Called when the user closes the window. Ensures a clean disconnect from the server.
+        """
+        try:
+            if self.my_user:
+                # Send logout request
+                self.client.send_request(Request("logout", self.my_user))
+            self.client.disconnect()
+        except Exception as e:
+            print(f"Error while disconnecting: {e}")
+        finally:
+            self.destroy()
+            quit()
 
 
 if __name__ == "__main__":
