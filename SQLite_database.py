@@ -2,6 +2,8 @@ import os
 import sqlite3
 import threading
 
+import bcrypt
+
 from file import File
 from user import User
 from user_access import UserAccess
@@ -32,7 +34,7 @@ class UserDatabase:
                     first_name TEXT NOT NULL,
                     last_name TEXT NOT NULL,
                     username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL
+                    password BLOB NOT NULL
                 )
             """)
             self.cursor.execute("""
@@ -76,7 +78,6 @@ class UserDatabase:
                     (user.first_name, user.last_name, user.username, user.password),
                 )
                 self.conn.commit()
-                # user_id = self.cursor.lastrowid
                 return True
             except sqlite3.IntegrityError:
                 return False
@@ -93,8 +94,19 @@ class UserDatabase:
         """
         user_id = self.get_user_id(user.username)
         with self.lock:
-            self.cursor.execute("SELECT id FROM users WHERE id=? AND password=?", (user_id, user.password))
-            return self.cursor.fetchone() is not None, user_id
+            # Retrieve stored hashed password using user_id
+            self.cursor.execute("SELECT password FROM users WHERE id=?", (user_id,))
+            row = self.cursor.fetchone()
+
+            if row is None:
+                return False, None
+
+            stored_hashed_password = row[0]
+
+            # Verify the password using bcrypt
+            password_matches = bcrypt.checkpw(user.password.encode('utf-8'), stored_hashed_password)
+
+            return password_matches, user_id if password_matches else None
 
     def add_file(self, user: User, file: File, content: str):
         """
@@ -589,15 +601,7 @@ class UserDatabase:
                 return False
 
     def get_user_full_name(self, username):
-        """
-        Retrieve a user's full name using their username.
-
-        :param username: The username of the user
-        :type username: str
-
-        :return: Full name as a string or None if user not found
-        :rtype: str or None
-        """
+        """Retrieve the full name of a user."""
         with self.lock:
             self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
             result = self.cursor.fetchone()

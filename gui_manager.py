@@ -9,7 +9,7 @@ from client import Client
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
-class AuthApp(ctk.CTk):
+class GuiManager(ctk.CTk):
     """
     Main application class for CoEdit, managing user authentication (login and signup),
     client-server communication, and navigation to the file manager screen.
@@ -122,4 +122,4 @@ class AuthApp(ctk.CTk):
 
 
 if __name__ == "__main__":
-    AuthApp().mainloop()
+    GuiManager().mainloop()

@@ -18,11 +18,6 @@ UPDATE_INTERVAL = 0.8  # 800ms
 
 class Server:
     def __init__(self):
-        """
-        Initializes the Server instance by setting up SSL context, server socket,
-        database connection, and data structures for managing open files and pending changes.
-        Also starts the periodic update timer.
-        """
 
         self.open_files = {}
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -119,6 +114,8 @@ class Server:
                 :param conn: SSL-wrapped socket connection with the client
                 :type conn: ssl.SSLSocket
 
+                :return: None
+                :rtype: None
         """
         try:
             while True:

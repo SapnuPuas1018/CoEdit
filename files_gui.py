@@ -1,6 +1,5 @@
 import os
 import tkinter
-from types import new_class
 
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog

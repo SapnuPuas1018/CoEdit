@@ -1,5 +1,6 @@
 from tkinter import messagebox
-import re
+
+import bcrypt
 import customtkinter as ctk
 from request import Request
 from user import User
@@ -64,7 +65,8 @@ class SignUpGui:
             messagebox.showerror("Error", "Passwords do not match")
             return
 
-        signup_result = User('', first_name, last_name, username, password)
+        hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+        signup_result = User('', first_name, last_name, username, hashed_password)
         print(signup_result)
 
         self.client.send_request(Request('signup', signup_result))

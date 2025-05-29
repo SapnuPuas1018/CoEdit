@@ -4,7 +4,7 @@ class User:
     """
     Represents a user with basic information and file management capabilities.
     """
-    def __init__(self, user_id, first_name, last_name,username: str, password: str):
+    def __init__(self, user_id, first_name, last_name,username: str, password):
         """
         Initializes a User object with identification, credentials, and an empty file dictionary.
 
@@ -87,17 +87,6 @@ class User:
         """
         return list(self.files.keys())
 
-    def verify_password(self, password: str):
-        """
-        Verifies if the provided password matches the user's password.
-
-        :param password: The password to verify
-        :type password: str
-
-        :return: True if the password matches, False otherwise
-        :rtype: bool
-        """
-        return self.password == password  # In real cases, use hashing!
 
     def __repr__(self):
         """
