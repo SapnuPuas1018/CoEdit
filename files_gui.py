@@ -463,6 +463,8 @@ class FileManagerApp(ctk.CTk):
         :return: None
         :rtype: None
         """
+        print('apply_file_update: ')
+        print(changes)
         editor = self.open_editors.get(file.file_id)
         if editor:
             editor.apply_changes(changes)

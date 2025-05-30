@@ -5,6 +5,7 @@ from threading import Thread, Lock, Timer
 import protocol
 from SQLite_database import UserDatabase
 from file import File
+from operation import Operation
 from request import Request
 from user import User
 
@@ -71,26 +72,28 @@ class Server:
                         for _, change_list in changes:
                             all_changes.extend(change_list)
 
-                        # Broadcast to other clients with read access only
+                        print(f"Broadcasting changes for file {file_id} from sender {sender_conn}")
+
                         for user, conn in self.open_files.get(file_id, []):
                             if conn == sender_conn:
                                 continue
 
-                            # Check read access from database
+                            print(f"Checking read access for {user.username} on file {file_id}")
                             if self.database.can_user_read_file(user, file):
+                                print(f"User {user.username} has read access, sending update.")
                                 try:
                                     protocol.send(conn, Request('file-content-update', [file, all_changes]))
                                 except Exception as e:
                                     print(f"Error sending batched update to {user.username}: {e}")
+                            else:
+                                print(f"User {user.username} does NOT have read access.")
 
-                # Clear the pending changes
                 self.pending_changes.clear()
 
         except Exception as e:
             print(f"Error in send_batched_updates: {e}")
 
         finally:
-            # Schedule the next update
             self.start_update_timer()
 
     def start_server(self):
@@ -246,34 +249,18 @@ class Server:
         protocol.send(conn, Request('write-access-response', [file, write_access]))
 
     def handle_file_content_update(self, request: Request, conn):
-        """
-        Apply received changes to a file, save the updated content to the database, and queue the changes for broadcasting.
-
-        :param request: Request containing the file, list of changes, and the user
-        :type request: Request
-        :param conn: SSL-wrapped socket connection
-        :type conn: ssl.SSLSocket
-
-        :return: None
-        :rtype: None
-        """
         file: File = request.data[0]
-        changes: list[dict] = request.data[1]
+        changes: list[Operation] = request.data[1]  # עכשיו זה רשימה של Operation ולא dict
         user: User = request.data[2]
-
-        # if not self.database.check_write(user, file):
-        #     #user cant write
-        #     protocol.send(conn, Request('no-write-access', None))
-        #     return
 
         current_content = self.database.get_file_content(user, file)
 
-        result = self.apply_changes(current_content, changes)
-        updated_content = result["content"]
-        changes = result["changes"]
+        updated_content = current_content
+        for op in changes:
+            updated_content = op.apply(updated_content)  # מניח שיש מתודת apply שמבצעת את הפעולה
+
         print('updated_content: ' + updated_content)
 
-        # Save new content to DB
         self.database.save_file_content(user, file, updated_content)
 
         with self.pending_changes_lock:
@@ -283,7 +270,7 @@ class Server:
             if conn not in self.pending_changes[file.file_id]:
                 self.pending_changes[file.file_id][conn] = []
 
-            # Add these changes to the queue
+            # מוסיף את ה-Operation objects לתור
             self.pending_changes[file.file_id][conn].append((file, changes))
 
     def apply_changes(self, original: str, changes: list[dict]) -> dict:
@@ -465,7 +452,8 @@ class Server:
         success, user_id = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
         user.user_id = user_id
-        user.first_name, user.last_name = self.database.get_user_full_name(user.username)
+        if success:
+            user.first_name, user.last_name = self.database.get_user_full_name(user.username)
         protocol.send(conn, Request('login-success', [success, user]))
         if success:
             self.get_user_files(user, conn)

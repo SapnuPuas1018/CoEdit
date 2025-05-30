@@ -2,6 +2,8 @@ import difflib
 import time
 import customtkinter as ctk
 import tkinter as tk
+
+from operation import Operation
 from request import Request
 
 
@@ -53,7 +55,10 @@ class FileEditor(ctk.CTkToplevel):
         self.text_area._textbox.config(undo=True, maxundo=-1)
         self.text_area.bind("<<Modified>>", self.on_text_change)
         self.last_update = time.time()
+
         self.changes_history = []
+        self.undo_stack = []  # type: list[Operation]
+        self.redo_stack = []  # type: list[Operation]
 
         self.current_content = content
         self.text_area.insert("1.0", self.current_content)  # Initialize with content
@@ -140,32 +145,33 @@ class FileEditor(ctk.CTkToplevel):
         self.show_match(self.current_match_index)
 
     def undo(self, event=None):
-        """
-        Undo the last text modification.
+        if not self.undo_stack:
+            return
 
-        :param event: Event triggering undo (usually keybinding)
-        :type event: tkinter.Event or None
-        """
+        self.suppress_text_change = True
         try:
-            print('undo')
-            self.text_area._textbox.edit_undo()
-        except tk.TclError:
-            pass  # Nothing to undo
-            print('Nothing to undo')
+            op = self.undo_stack.pop()
+            self.revert_change(op)
+            self.redo_stack.append(op)
+            self.changes_history.remove(op)
+            self.current_content = self.text_area.get("1.0", "end-1c")
+        finally:
+            self.suppress_text_change = False
 
     def redo(self, event=None):
-        """
-        Redo the previously undone modification.
+        if not self.redo_stack:
+            return
 
-        :param event: Event triggering redo (usually keybinding)
-        :type event: tkinter.Event or None
-        """
+        self.suppress_text_change = True
         try:
-            print('redo')
-            self.text_area._textbox.edit_redo()
-        except tk.TclError:
-            pass  # Nothing to redo
-            print('Nothing to redo')
+            op = self.redo_stack.pop()
+            self.apply_single_change(op)
+            self.undo_stack.append(op)
+            self.changes_history.append(op)
+            self.changes_history.sort()
+            self.current_content = self.text_area.get("1.0", "end-1c")
+        finally:
+            self.suppress_text_change = False
 
     def write_access_check(self):
         """
@@ -183,46 +189,27 @@ class FileEditor(ctk.CTkToplevel):
         self.no_access_box.pack(pady=5, padx=5, fill="x")
 
     def on_text_change(self, event):
-        """
-        Handle the event when the text content changes. Generates and sends diffs.
-
-        :param event: Event triggered when the text is modified
-        :type event: tkinter.Event
-        """
         if self.suppress_text_change:
             return
 
-        self.text_area.edit_modified(False)  # Reset the modified flag
+        self.text_area.edit_modified(False)
         new_content = self.text_area.get("1.0", "end-1c")
 
         if new_content == self.current_content:
-            return  # No actual change
+            return
 
-        # Generate diffs
-        diff_dict = self.get_diff_changes(self.current_content, new_content)
+        diff_ops = self.get_diff_changes(self.current_content, new_content)
 
-        # Append each change to history
-        for change in diff_dict:
-            self.changes_history.append(change)
+        for op in diff_ops:
+            self.changes_history.append(op)
+        self.redo_stack.clear()
 
         self.current_content = new_content
         self.last_update = time.time()
 
-        # Send the changes to the server
-        self.client.send_request(Request('file-content-update', [self.current_file, diff_dict, self.my_user]))
+        self.client.send_request(Request('file-content-update', [self.current_file, diff_ops, self.my_user]))
 
-    def get_diff_changes(self, old: str, new: str) -> list[dict[str,str]]:
-        """
-        Generate a list of text changes (diffs) between old and new content.
-
-        :param old: Original text content
-        :type old: str
-        :param new: Updated text content
-        :type new: str
-
-        :return: List of change dictionaries
-        :rtype: list[dict[str, str]]
-        """
+    def get_diff_changes(self, old: str, new: str) -> list[Operation]:
         changes = []
 
         sm = difflib.SequenceMatcher(None, old, new)
@@ -233,74 +220,58 @@ class FileEditor(ctk.CTkToplevel):
             old_sub = old[i1:i2]
             new_sub = new[j1:j2]
 
-            # Compute line and character for i1 and j1
             line = old[:i1].count('\n')
             char = i1 - old.rfind('\n', 0, i1) - 1 if '\n' in old[:i1] else i1
 
             if tag == 'insert':
-                changes.append({"insert": new_sub, "line": line, "char": char, "time": time.time()})
+                changes.append(Operation("insert", new_sub, line, char))
             elif tag == 'delete':
-                changes.append({"delete": old_sub, "line": line, "char": char, "time": time.time()})
+                changes.append(Operation("delete", old_sub, line, char))
             elif tag == 'replace':
-                changes.append({"delete": old_sub, "line": line, "char": char, "time": time.time()})
-                changes.append({"insert": new_sub, "line": line, "char": char, "time": time.time()})
+                changes.append(Operation("delete", old_sub, line, char))
+                changes.append(Operation("insert", new_sub, line, char))
 
         return changes
 
-    def apply_single_change(self, change):
-        """
-        Apply a single change (insert or delete) to the text widget.
-
-        :param change: Dictionary representing a text change
-        :type change: dict
-        """
-        line = int(change['line']) + 1
-        char = int(change['char'])
+    def apply_single_change(self, op: Operation):
+        line = op.line + 1
+        char = op.char
         index = f"{line}.{char}"
 
-        if 'delete' in change:
-            delete_text = change['delete']
-            lines = delete_text.split('\n')
+        if op.op_type == "delete":
+            lines = op.text.split('\n')
             if len(lines) == 1:
-                end_index = f"{line}.{char + len(delete_text)}"
+                end_index = f"{line}.{char + len(op.text)}"
             else:
                 end_line = line + len(lines) - 1
                 end_char = len(lines[-1])
                 end_index = f"{end_line}.{end_char}"
             self.text_area.delete(index, end_index)
 
-        if 'insert' in change:
-            self.insert_text_preserve_cursor(index, change['insert'])
-            # self.insert_text_preserve_cursor(index, change['insert'])
+        elif op.op_type == "insert":
+            self.text_area.insert(index, op.text)
 
     def apply_changes(self, changes):
-        """
-        Apply a list of changes to the text widget, handling future reversion and reapplication.
-
-        :param changes: List of change dictionaries to apply
-        :type changes: list[dict]
-        """
         cursor_index = self.text_area.index("insert")
         self.suppress_text_change = True
 
         try:
             for change in changes:
-                # Find future changes to revert
-                incoming_time = change['time']
-                future_changes = [c for c in self.changes_history if c['time'] > incoming_time]
+                # Get all future changes that happened after the incoming operation
+                future_changes = [c for c in self.changes_history if c.timestamp > change.timestamp]
 
-                # Revert future changes
+                # Revert them in reverse order
                 for fc in reversed(future_changes):
                     self.revert_change(fc)
 
-                # Apply incoming change
+                # Apply the new incoming operation
                 self.apply_single_change(change)
 
-                # Add to history
+                # Append and sort history
                 self.changes_history.append(change)
-                self.changes_history.sort(key=lambda x: x['time'])  # Maintain order
+                self.changes_history.sort()
 
-                # Reapply future changes
+                # Reapply the reverted future changes
                 for fc in future_changes:
                     self.apply_single_change(fc)
 
@@ -310,30 +281,24 @@ class FileEditor(ctk.CTkToplevel):
         finally:
             self.suppress_text_change = False
 
-    def revert_change(self, change):
-        """
-        Revert a single change by undoing its insert or delete.
 
-        :param change: Change dictionary to revert
-        :type change: dict
-        """
-        line = int(change['line']) + 1
-        char = int(change['char'])
+    def revert_change(self, op: Operation):
+        line = op.line + 1
+        char = op.char
         index = f"{line}.{char}"
 
-        if 'insert' in change:
-            insert_text = change['insert']
-            lines = insert_text.split('\n')
+        if op.op_type == "insert":
+            lines = op.text.split('\n')
             if len(lines) == 1:
-                end_index = f"{line}.{char + len(insert_text)}"
+                end_index = f"{line}.{char + len(op.text)}"
             else:
                 end_line = line + len(lines) - 1
                 end_char = len(lines[-1])
                 end_index = f"{end_line}.{end_char}"
             self.text_area.delete(index, end_index)
 
-        elif 'delete' in change:
-            self.text_area.insert(index, change['delete'])
+        elif op.op_type == "delete":
+            self.text_area.insert(index, op.text)
 
     def insert_text_preserve_cursor(self, insert_index, content):
         """
