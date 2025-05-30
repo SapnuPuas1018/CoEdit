@@ -184,7 +184,7 @@ class Server:
         elif request.request_type == 'delete-file':
             pass
         elif request.request_type == "open-file":
-            self.open_file(request.data[0], request.data[1], conn)
+            self.handle_open_file(request.data[0], request.data[1], conn)
         elif request.request_type == 'get-access-list':
             self.handle_get_access_list(request, conn)
         elif request.request_type == 'check-user-exists':
@@ -273,60 +273,7 @@ class Server:
             # מוסיף את ה-Operation objects לתור
             self.pending_changes[file.file_id][conn].append((file, changes))
 
-    def apply_changes(self, original: str, changes: list[dict]) -> dict:
-        """
-        Apply a list of insert or delete operations to the original text content.
-
-        :param original: The original content of the file
-        :type original: str
-        :param changes: A list of dictionaries representing text changes
-        :type changes: list[dict]
-
-        :return: A dictionary with updated content and changes applied
-        :rtype: dict
-        """
-        print(f'apply_changes, original: {original}, changes: {changes}')
-        lines = original.splitlines(keepends=True)
-
-        if not lines:
-            lines = [""]
-
-        for change in changes:
-            line = change["line"]
-            char = change["char"]
-
-            # Extend lines if needed
-            while line >= len(lines):
-                lines.append("")
-
-            line_content = lines[line]
-
-            if "delete" in change:
-                del_text = change["delete"]
-                delete_len = len(del_text)
-
-                # Flatten the full text and compute the absolute delete position
-                full_text = ''.join(lines)
-                start_index = sum(len(lines[i]) for i in range(line)) + char
-                new_text = full_text[:start_index] + full_text[start_index + delete_len:]
-
-                # Rebuild lines from modified text
-                lines = new_text.splitlines(keepends=True)
-
-            elif "insert" in change:
-                ins_text = change["insert"]
-
-                # Recalculate full_text after previous deletions
-                full_text = ''.join(lines)
-                start_index = sum(len(lines[i]) for i in range(line)) + char
-                new_text = full_text[:start_index] + ins_text + full_text[start_index:]
-
-                # Rebuild lines from modified text
-                lines = new_text.splitlines(keepends=True)
-
-        return {"content": ''.join(lines), "changes": changes}
-
-    def open_file(self, user: User, file: File, conn):
+    def handle_open_file(self, user: User, file: File, conn):
         """
         Retrieve and send the content of a file to a client, and track the user connection for future updates.
 
