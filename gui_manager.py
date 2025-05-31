@@ -50,8 +50,7 @@ class GuiManager(ctk.CTk):
 
     def poll_client_response(self):
         """
-        Polls the client's response queue every 100ms to check for new messages
-        from the server. If a message is found, it is passed to the handler.
+        Handles server responses and updates the application state accordingly.
         """
         response = self.client.get_response_nowait()
         if response:
@@ -90,7 +89,7 @@ class GuiManager(ctk.CTk):
         elif response.request_type == 'file-list': # refresh files button
             self.files_gui.refresh_files(response.data)
         elif response.request_type == 'file-content':
-            self.files_gui.open_file(response.data[0], response.data[1]) # response.data[0] = file: File, response.data[1] = content: str
+            self.files_gui.open_file(response.data[0], response.data[1])
         elif response.request_type == 'file-content-update':
             file, changes = response.data
             self.files_gui.apply_file_update(file, changes)

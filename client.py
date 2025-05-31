@@ -29,7 +29,6 @@ class Client:
         self.conn = self.context.wrap_socket(self.my_socket, server_hostname=HOST_NAME)
 
         self.response_queue = queue.Queue()
-        # self.my_user
 
     def connect(self):
         """
@@ -60,13 +59,6 @@ class Client:
                 print(f"Error in listen: {e}")
                 break
 
-    def stop(self):
-        """
-        Stops the client by closing the connection and halting the listen loop.
-        """
-        self.running = False
-        self.conn.close()
-
     def send_request(self, request: Request):
         """
         Sends a request object to the server using the custom protocol.
@@ -91,6 +83,11 @@ class Client:
             return self.response_queue.get_nowait()
         except queue.Empty:
             return None
+
+    def stop(self):
+
+        self.running = False
+        self.conn.close()
 
     def disconnect(self):
         try:

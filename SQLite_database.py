@@ -9,7 +9,7 @@ from user import User
 from user_access import UserAccess
 
 
-class UserDatabase:
+class Database:
     def __init__(self, db_name="users.db"):
         """
         Initialize the UserDatabase with a SQLite connection and create tables if they do not exist.
@@ -17,10 +17,9 @@ class UserDatabase:
         :param db_name: Name of the SQLite database file
         :type db_name: str
         """
-        """Initialize SQLite database connection with multi-threading support."""
-        self.conn = sqlite3.connect(db_name, check_same_thread=False)  # Allows access across threads
+        self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.cursor = self.conn.cursor()
-        self.lock = threading.Lock()  # Thread-safe database access
+        self.lock = threading.Lock()
         self.create_tables()
 
     def create_tables(self):
@@ -94,7 +93,6 @@ class UserDatabase:
         """
         user_id = self.get_user_id(user.username)
         with self.lock:
-            # Retrieve stored hashed password using user_id
             self.cursor.execute("SELECT password FROM users WHERE id=?", (user_id,))
             row = self.cursor.fetchone()
 
@@ -103,7 +101,6 @@ class UserDatabase:
 
             stored_hashed_password = row[0]
 
-            # Verify the password using bcrypt
             password_matches = bcrypt.checkpw(user.password.encode('utf-8'), stored_hashed_password)
 
             return password_matches, user_id if password_matches else None
@@ -123,21 +120,17 @@ class UserDatabase:
         :rtype: tuple[bool, str]
         """
         if not user.user_id:
-            return False, "User not found."
+            return False
 
-        # Build directory path
         base_dir = os.path.join("CoEdit_users", user.username)
-        os.makedirs(base_dir, exist_ok=True)  # Create directory if it doesn't exist
+        os.makedirs(base_dir, exist_ok=True)  # create a directory if doesnt exist
 
-        # Build full file path
         full_path = os.path.join(base_dir, file.filename)
 
         try:
-            # Save file content to disk
             with open(full_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            # Save file metadata and path in DB
             with self.lock:
                 self.cursor.execute(
                     "INSERT INTO files (id, owner_id, filename, path) VALUES (?, ?, ?, ?)",
@@ -145,34 +138,10 @@ class UserDatabase:
                 )
                 self.conn.commit()
 
-            return True, f"File '{file.filename}' saved to disk and registered in database."
+            return True
 
         except Exception as e:
             return False, f"Error saving file: {str(e)}"
-
-    def check_write(self, user: User, file: File):
-        """
-        Check if the user has write access to the given file.
-
-        :param user: The User object
-        :type user: User
-        :param file: The File object
-        :type file: File
-
-        :return: True if the user has write access, False otherwise
-        :rtype: bool
-        """
-        with self.lock:
-            # Check if the user has read access
-            self.cursor.execute("""
-                SELECT can_write FROM file_access 
-                JOIN users ON file_access.user_id = users.id 
-                WHERE users.id = ? AND file_access.file_id = ?
-            """, (user.user_id, file.file_id))
-            access_result = self.cursor.fetchone()
-            if not access_result or not access_result[0]:
-                return False  # User has no write access
-            return True
 
     def get_file_content(self, user: User, file: File):
         """
@@ -186,18 +155,11 @@ class UserDatabase:
         :return: The content of the file or None if inaccessible
         :rtype: str or None
         """
-        with self.lock:
-            # Check if the user has read access
-            self.cursor.execute("""
-                SELECT can_read FROM file_access 
-                JOIN users ON file_access.user_id = users.id 
-                WHERE users.id = ? AND file_access.file_id = ?
-            """, (user.user_id, file.file_id))
-            access_result = self.cursor.fetchone()
-            if not access_result or not access_result[0]:
-                return None  # User has no read access
+        if not self.can_user_read(user, file):
+            print("User does not have read access")
+            return None
 
-            # Retrieve file path
+        with self.lock:
             self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
             result = self.cursor.fetchone()
 
@@ -210,10 +172,9 @@ class UserDatabase:
                     return file_content or ''
             except FileNotFoundError:
                 return None
-        print('no result')
         return ''
 
-    def save_file_content(self, user: User, file: File, content: str) -> bool:
+    def update_file_content(self, user: User, file: File, content: str) -> bool:
         """
         Retrieve file content from disk if the user has read access.
 
@@ -221,6 +182,8 @@ class UserDatabase:
         :type user: User
         :param file: The File object
         :type file: File
+        :param content: The new content to be saved
+        :type content: str
 
         :return: The content of the file or None if inaccessible
         :rtype: str or None
@@ -238,7 +201,7 @@ class UserDatabase:
                 path = result[0]
                 try:
                     with open(path, "w", encoding="utf-8") as f:
-                        print(f'save to file, path: {path}, content: {content}')
+                        print(f'updated to file, path: {path}, content: {content}')
                         f.write(content)
                     return True
                 except Exception as e:
@@ -246,31 +209,9 @@ class UserDatabase:
                     return False
         return False
 
-    def get_file_path(self, user: User, filename):
+    def delete_file(self, user_id, file_id):
         """
-        Get the file path for a user's file based on the filename.
-
-        :param user: The User object
-        :type user: User
-        :param filename: The name of the file
-        :type filename: str
-
-        :return: Full path to the file or None if not found
-        :rtype: str or None
-        """
-        owner_id = self.get_user_id(user.username)
-        if owner_id:
-            with self.lock:
-                self.cursor.execute(
-                    "SELECT path FROM files WHERE owner_id=? AND filename=?", (owner_id, filename)
-                )
-                result = self.cursor.fetchone()
-                return result[0] if result else None
-        return None
-
-    def remove_file(self, user_id, file_id):
-        """
-        Remove a file from both the database and disk.
+        Deletes a file from both the database and disk.
 
         :param user_id: ID of the file owner
         :type user_id: int
@@ -281,24 +222,21 @@ class UserDatabase:
         :rtype: tuple[bool, str]
         """
         with self.lock:
-            # Confirm the file belongs to the user
             self.cursor.execute("SELECT path FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
             result = self.cursor.fetchone()
 
             if result:
                 path = result[0]
-                # Delete from disk
                 if os.path.exists(path):
                     try:
                         os.remove(path)
                     except Exception as e:
                         print(f"Warning: Failed to delete file from disk: {e}")
 
-                # Delete file entry and associated access
                 self.cursor.execute("DELETE FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
                 self.conn.commit()
-                return True, f"File '{file_id}' removed successfully."
-        return False, "File not found or access denied."
+                return True
+        return False
 
     def get_user_id(self, username):
         """
@@ -337,7 +275,7 @@ class UserDatabase:
         else:
             return None
 
-    def can_user_read_file(self, user: User, file: File) -> bool:
+    def can_user_read(self, user: User, file: File) -> bool:
         """
         Check if the user has read access to a specific file.
 
@@ -424,33 +362,6 @@ class UserDatabase:
                 readable_files.append(file)
             return readable_files
 
-    def get_user_by_id(self, user_id: int):
-        """
-        Get a User object by their ID.
-
-        :param user_id: The user's ID
-        :type user_id: int
-
-        :return: User object if found, otherwise None
-        :rtype: User or None
-        """
-        with self.lock:
-            self.cursor.execute("""
-                SELECT id, first_name, last_name, username
-                FROM users
-                WHERE id = ?
-            """, (user_id,))
-            row = self.cursor.fetchone()
-            if row:
-                return User(
-                    user_id=row[0],
-                    first_name=row[1],
-                    last_name=row[2],
-                    username=row[3],
-                    password=row[4]
-                )
-            return None
-
     def add_file_access(self, user: User, file: File, can_read=False, can_write=False):
         """
         Grant file access rights to a user.
@@ -518,7 +429,6 @@ class UserDatabase:
                     WHERE user_id = ? AND file_id = ?
                 """, (int(can_read), int(can_write), user_id, file_id))
             else:
-                # Entry does not exist -> Insert
                 self.cursor.execute("""
                     INSERT INTO file_access (user_id, file_id, can_read, can_write)
                     VALUES (?, ?, ?, ?)
@@ -576,20 +486,16 @@ class UserDatabase:
         :rtype: bool
         """
         with self.lock:
-            # Get current file path
             self.cursor.execute("SELECT path FROM files WHERE id = ?", (file.file_id,))
             result = self.cursor.fetchone()
             if not result:
-                return False  # File not found in DB
+                return False  # file not found
 
             old_path = result[0]
             new_path = os.path.join(os.path.dirname(old_path), new_filename)
 
             try:
-                # Rename the file on disk
                 os.rename(old_path, new_path)
-
-                # Update database: filename and path
                 self.cursor.execute(
                     "UPDATE files SET filename = ?, path = ? WHERE id = ?",
                     (new_filename, new_path, file.file_id)
@@ -601,13 +507,25 @@ class UserDatabase:
                 return False
 
     def get_user_full_name(self, username):
-        """Retrieve the full name of a user."""
+        """
+        Retrieve the full name of a user based on the given username.
+
+        :param username: The username of the user whose full name is to be retrieved
+        :type username: str
+
+        :return: A tuple containing (first_name, last_name) if the user exists, otherwise None
+        :rtype: tuple or None
+        """
         with self.lock:
             self.cursor.execute("SELECT first_name, last_name FROM users WHERE username=?", (username,))
             result = self.cursor.fetchone()
             return result[0],result[1] if result else None
 
-    def close(self):
-        """Close the database connection."""
+    def close_connection(self):
+        """
+        Close the database connection.
+
+        :return: None
+        """
         with self.lock:
             self.conn.close()

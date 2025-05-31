@@ -3,7 +3,7 @@ import ssl
 from threading import Thread, Lock, Timer
 
 import protocol
-from SQLite_database import UserDatabase
+from SQLite_database import Database
 from file import File
 from operation import Operation
 from request import Request
@@ -29,7 +29,7 @@ class Server:
 
         self.s_sock = self.context.wrap_socket(self.server_socket, server_side=True)
         self.thread_list = []
-        self.database = UserDatabase()
+        self.database = Database()
 
         # Add pending changes queue and lock for thread safety
         self.pending_changes = {}  # {file_id: {conn: [changes]}}
@@ -51,9 +51,9 @@ class Server:
 
     def send_batched_updates(self):
         """
-                Send all pending file content changes to appropriate clients with read access, and schedule the next update.
+        Send all pending file content changes to appropriate clients with read access, and schedule the next update.
 
-                :return: None
+        :return: None
         """
         try:
             with self.pending_changes_lock:
@@ -77,7 +77,7 @@ class Server:
                                 continue
 
                             print(f"Checking read access for {user.username} on file {file_id}")
-                            if self.database.can_user_read_file(user, file):
+                            if self.database.can_user_read(user, file):
                                 print(f"User {user.username} has read access, sending update.")
                                 try:
                                     protocol.send(conn, Request('file-content-update', [file, all_changes]))
@@ -109,12 +109,12 @@ class Server:
 
     def listen(self, conn):
         """
-                Continuously listen for requests from a specific client and delegate request handling.
+        Continuously listen for requests from a specific client and delegate request handling.
 
-                :param conn: SSL-wrapped socket connection with the client
-                :type conn: ssl.SSLSocket
+        :param conn: SSL-wrapped socket connection with the client
+        :type conn: ssl.SSLSocket
 
-                :return: None
+        :return: None
         """
         try:
             while True:
@@ -225,6 +225,20 @@ class Server:
         protocol.send(conn, Request('logout_success', True))
 
     def handle_file_content_update(self, file, changes, user, conn):
+        """
+        Apply a list of operations (changes) to a file's content and schedule the update to be sent to readers.
+
+        :param file: The file to be updated
+        :type file: File
+        :param changes: A list of operations representing the changes
+        :type changes: list[Operation]
+        :param user: The user who performed the changes
+        :type user: User
+        :param conn: The connection through which the request was received
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        """
         current_content = self.database.get_file_content(user, file)
 
         updated_content = current_content
@@ -233,7 +247,7 @@ class Server:
 
         print('updated_content: ' + updated_content)
 
-        self.database.save_file_content(user, file, updated_content)
+        self.database.update_file_content(user, file, updated_content)
 
         with self.pending_changes_lock:
             if file.file_id not in self.pending_changes:
@@ -270,30 +284,27 @@ class Server:
 
     def handle_update_access_table(self, file: File, updated_access,  conn):
         """
-                Update the access table for a file based on the provided new access list.
+        Update the access table for a file based on the provided new access list.
 
-                :param request: Request containing the file and updated access list
-                :type request: Request
-                :param conn: The client connection
-                :type conn: ssl.SSLSocket
+        :param file: The file whose access table is being updated
+        :type file: File
+        :param updated_access: A list of dictionaries with updated access rights
+        :type updated_access: list[dict]
+        :param conn: The client connection
+        :type conn: ssl.SSLSocket
 
-                :return: None
+        :return: None
         """
         try:
-            # Retrieve the current access table for the file
             for access in updated_access:
                 username = access["username"]
                 can_read = access["read"]
                 can_write = access["write"]
 
-                # Get the user object by username
                 user = self.database.check_if_user_exists_by_username(username)
                 print(user)
                 if user:
-                    # Update the file access for this user
                     x = self.database.change_file_access(user, file, can_read, can_write)
-                    print('-' * 30)
-                    print(x)
             protocol.send(conn, Request('update-access-response', True))
         except Exception as e:
             print(f"Failed to update access table: {e}")
@@ -303,8 +314,8 @@ class Server:
         """
         Check if a user exists by username and respond to the client with the result.
 
-        :param request: Request containing the username to check
-        :type request: Request
+        :param username: The username to check
+        :type username: str
         :param conn: The client connection
         :type conn: ssl.SSLSocket
 
@@ -317,8 +328,8 @@ class Server:
         """
         Retrieve and send the list of users who have access to a specific file.
 
-        :param request: Request containing the file
-        :type request: Request
+        :param file: The file for which access list is requested
+        :type file: File
         :param conn: The client connection
         :type conn: ssl.SSLSocket
 
@@ -331,8 +342,8 @@ class Server:
         """
         Handle user sign-up by adding them to the database and notifying the client.
 
-        :param request: Request containing the user object
-        :type request: Request
+        :param user: The user attempting to sign up
+        :type user: User
         :param conn: Client connection
         :type conn: ssl.SSLSocket
 
@@ -345,8 +356,8 @@ class Server:
         """
         Authenticate a user and respond to the client with success or failure, and send accessible files if successful.
 
-        :param request: Request containing the user object
-        :type request: Request
+        :param user: The user attempting to log in
+        :type user: User
         :param conn: The client connection
         :type conn: ssl.SSLSocket
 
@@ -380,14 +391,15 @@ class Server:
         """
         Handle the creation of a new file and set the appropriate access rights.
 
-        :param request: Request containing the file and user
-        :type request: Request
+        :param file: The file to be added
+        :type file: File
+        :param user: The user who creates the file
+        :type user: User
         :param conn: Client connection
         :type conn: ssl.SSLSocket
 
         :return: None
         """
-
         success_add_file = self.database.add_file(user, file, '')
         success_add_access = False
 
@@ -397,21 +409,22 @@ class Server:
         if success_add_file and success_add_access:
             protocol.send(conn, Request('add-file-success', [True, file]))
         else:
-            self.database.remove_file(user.user_id, file.file_id)
+            self.database.delete_file(user.user_id, file.file_id)
             protocol.send(conn, Request('add-file-success', [False, ]))
 
     def handle_file_rename(self, file: File, new_name: str, conn):
         """
         Rename a file in the database and notify the client of success or failure.
 
-        :param request: Request containing the file and new name
-        :type request: Request
+        :param file: The file to be renamed
+        :type file: File
+        :param new_name: The new name for the file
+        :type new_name: str
         :param conn: Client connection
         :type conn: ssl.SSLSocket
 
         :return: None
         """
-
         success = self.database.rename_file(file, new_name)
         protocol.send(conn, Request('rename-file-success', success))
 
