@@ -22,7 +22,6 @@ class UserAccess:
         :type can_write: bool
 
         :return: None
-        :rtype: None
         """
         self.file = file
         self.user = user

@@ -56,7 +56,7 @@ class GuiManager(ctk.CTk):
         response = self.client.get_response_nowait()
         if response:
             self.handle_response_change_state(response)
-        self.after(100, self.poll_client_response)  # Schedule next poll
+        self.after(100, self.poll_client_response)
 
     def handle_response_change_state(self, response: Request):
         """

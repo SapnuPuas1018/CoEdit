@@ -1,5 +1,4 @@
 import difflib
-import time
 import customtkinter as ctk
 import tkinter as tk
 
@@ -54,7 +53,6 @@ class FileEditor(ctk.CTkToplevel):
         self.text_area.pack(expand=True, fill="both", padx=5, pady=5)
         self.text_area._textbox.config(undo=True, maxundo=-1)
         self.text_area.bind("<<Modified>>", self.on_text_change)
-        self.last_update = time.time()
 
         self.changes_history = []
         self.undo_stack = []  # type: list[Operation]
@@ -173,15 +171,6 @@ class FileEditor(ctk.CTkToplevel):
         finally:
             self.suppress_text_change = False
 
-    def show_no_write_access_message(self):
-        """
-        Display a message box notifying the user that they do not have write access.
-        """
-        self.no_access_box = ctk.CTkTextbox(self, height=30)
-        self.no_access_box.insert("1.0", "You do not have write access to this file.")
-        self.no_access_box.configure(state="disabled")
-        self.no_access_box.pack(pady=5, padx=5, fill="x")
-
     def on_text_change(self, event):
         if self.suppress_text_change:
             return
@@ -199,7 +188,6 @@ class FileEditor(ctk.CTkToplevel):
         self.redo_stack.clear()
 
         self.current_content = new_content
-        self.last_update = time.time()
 
         self.client.send_request(Request('file-content-update', [self.current_file, diff_ops, self.my_user]))
 
@@ -293,4 +281,35 @@ class FileEditor(ctk.CTkToplevel):
 
         elif op.op_type == "delete":
             self.text_area.insert(index, op.text)
+
+    def insert_text_preserve_cursor(self, insert_index, content):
+        """
+        Insert text at a specified index without altering the cursor position unnecessarily.
+
+        :param insert_index: Index in the text widget where the content should be inserted
+        :type insert_index: str
+        :param content: The text content to insert
+        :type content: str
+        """
+        cursor_index = self.text_area.index("insert")
+
+        def index_to_tuple(index_str):
+            line, char = map(int, index_str.split('.'))
+            return line, char
+
+        cursor_line, cursor_char = index_to_tuple(cursor_index)
+        insert_line, insert_char = index_to_tuple(insert_index)
+
+        # Insert the text
+        self.text_area.insert(insert_index, content)
+
+        # Decide if cursor needs to be adjusted
+        if (insert_line, insert_char) < (cursor_line, cursor_char):
+            # If insert is before the cursor, move the cursor forward by the inserted text length
+            new_char_index = cursor_char + len(content)
+            new_cursor_index = f"{cursor_line}.{new_char_index}"
+            self.text_area.mark_set("insert", new_cursor_index)
+        else:
+            # Insert at or after cursor, keep cursor where it was
+            self.text_area.mark_set("insert", cursor_index)
 

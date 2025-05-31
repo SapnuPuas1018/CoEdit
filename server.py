@@ -19,7 +19,6 @@ UPDATE_INTERVAL = 0.8  # 800ms
 
 class Server:
     def __init__(self):
-
         self.open_files = {}
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(CERT_FILE, KEY_FILE)
@@ -37,6 +36,7 @@ class Server:
         self.pending_changes_lock = Lock()
 
         # Start the timer for sending batched updates
+        self.update_timer = None
         self.start_update_timer()
 
     def start_update_timer(self):
@@ -44,10 +44,9 @@ class Server:
         Start a timer that triggers the sending of batched file content updates every UPDATE_INTERVAL seconds.
 
         :return: None
-        :rtype: None
         """
         self.update_timer = Timer(UPDATE_INTERVAL, self.send_batched_updates)
-        self.update_timer.daemon = True  # Allow the program to exit even if timer is running
+        self.update_timer.daemon = True
         self.update_timer.start()
 
     def send_batched_updates(self):
@@ -55,7 +54,6 @@ class Server:
                 Send all pending file content changes to appropriate clients with read access, and schedule the next update.
 
                 :return: None
-                :rtype: None
         """
         try:
             with self.pending_changes_lock:
@@ -101,7 +99,6 @@ class Server:
         Start the server to listen for incoming SSL connections and spawn a new thread for each client.
 
         :return: None
-        :rtype: None
         """
         while True:
             conn, addr = self.s_sock.accept()
@@ -118,7 +115,6 @@ class Server:
                 :type conn: ssl.SSLSocket
 
                 :return: None
-                :rtype: None
         """
         try:
             while True:
@@ -139,7 +135,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         # Remove connection from open_files
         for file_id in list(self.open_files):
@@ -165,7 +160,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         print(f"received from client : {request}")
         if request.request_type == 'signup':
@@ -191,8 +185,6 @@ class Server:
             self.handle_check_user_exists(request, conn)
         elif request.request_type == 'update-access-table':
             self.handle_update_access_table(request, conn)
-        elif request.request_type == 'write-access-check':
-            self.handle_write_access_check(request, conn)
         elif request.request_type == 'file-content-update':
             self.handle_file_content_update(request, conn)
         elif request.request_type == 'logout':
@@ -208,7 +200,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         print(f"User {user.username} is logging out...")
 
@@ -228,36 +219,18 @@ class Server:
 
         print(f"User {user.username} logged out and cleaned up.")
 
-        # Optionally: Send logout confirmation to client
         protocol.send(conn, Request('logout_success', True))
-
-    def handle_write_access_check(self, request: Request, conn):
-        """
-        Check if a user has write access to a file and send the result back to the client.
-
-        :param request: Request object containing the file and user
-        :type request: Request
-        :param conn: SSL connection to the client
-        :type conn: ssl.SSLSocket
-
-        :return: None
-        :rtype: None
-        """
-        file: File = request.data[0]
-        user: User = request.data[1]
-        write_access = self.database.check_write(user, file)
-        protocol.send(conn, Request('write-access-response', [file, write_access]))
 
     def handle_file_content_update(self, request: Request, conn):
         file: File = request.data[0]
-        changes: list[Operation] = request.data[1]  # עכשיו זה רשימה של Operation ולא dict
+        changes: list[Operation] = request.data[1]
         user: User = request.data[2]
 
         current_content = self.database.get_file_content(user, file)
 
         updated_content = current_content
         for op in changes:
-            updated_content = op.apply(updated_content)  # מניח שיש מתודת apply שמבצעת את הפעולה
+            updated_content = op.apply(updated_content)
 
         print('updated_content: ' + updated_content)
 
@@ -270,7 +243,6 @@ class Server:
             if conn not in self.pending_changes[file.file_id]:
                 self.pending_changes[file.file_id][conn] = []
 
-            # מוסיף את ה-Operation objects לתור
             self.pending_changes[file.file_id][conn].append((file, changes))
 
     def handle_open_file(self, user: User, file: File, conn):
@@ -285,7 +257,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         content = self.database.get_file_content(user, file)
 
@@ -308,7 +279,6 @@ class Server:
                 :type conn: ssl.SSLSocket
 
                 :return: None
-                :rtype: None
         """
         file = request.data[0]
         updated_access = request.data[1]
@@ -343,10 +313,9 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         username = request.data
-        user = self.database.check_if_user_exists_by_username(username)  # returns None if not found
+        user = self.database.check_if_user_exists_by_username(username)
         protocol.send(conn, Request('user-exists-response', user))
 
     def handle_get_access_list(self, request: Request, conn):
@@ -359,7 +328,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         file: File = request.data
         file_accesses = self.database.get_users_with_access_to_file(file)
@@ -375,11 +343,8 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         user: User = request.data
-        print(type(user))
-        print(user)
         already_exists = self.database.add_user(user)
         protocol.send(conn, Request('signup-success', already_exists))
 
@@ -393,7 +358,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         user: User = request.data
         success, user_id = self.database.verify_user(user)
@@ -415,7 +379,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         files: list[File] = self.database.get_readable_files_per_user(user)
         print(files)
@@ -431,7 +394,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         file = request.data[0]
         user = request.data[1]
@@ -458,7 +420,6 @@ class Server:
         :type conn: ssl.SSLSocket
 
         :return: None
-        :rtype: None
         """
         file = request.data[0]
         new_name = request.data[1]

@@ -1,8 +1,8 @@
 import os
 import tkinter
+from tkinter import messagebox, simpledialog
 
 import customtkinter as ctk
-from tkinter import messagebox, simpledialog
 from datetime import datetime
 
 
@@ -503,7 +503,7 @@ class FileManagerApp(ctk.CTk):
                 filename=new_name,
                 owner=self.my_user,  # Assuming my_user holds the logged-in user
                 path=file_path,  # Path to be created and stored on the server
-                creation_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Current date and time
+                creation_date=datetime.now().strftime("%Y-%m-%d %H:%M")  # Current date and time
             )
 
             # Send the file creation request to the server

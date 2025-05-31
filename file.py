@@ -7,7 +7,7 @@ class File:
     """
     Represents a file object with metadata including filename, owner, path, and creation date.
     """
-    def __init__(self, filename, owner: User, path, creation_date=None, file_id=None):
+    def __init__(self, filename: str, owner: User, path: str, creation_date=None, file_id=None):
         """
         Initializes a File object with metadata and optional custom creation date and file ID.
 
@@ -27,7 +27,6 @@ class File:
         :type file_id: str or None
 
         :return: None
-        :rtype: None
         """
         self.file_id = str(file_id) if file_id else str(uuid4())
         self.filename = filename
@@ -43,18 +42,3 @@ class File:
         :rtype: str
         """
         return f"<File {self.filename} by {self.owner} created on {self.creation_date}>"
-
-    def to_tuple(self):
-        """
-        Converts the file attributes to a tuple format suitable for database insertion or transport.
-
-        :return: A tuple containing file_id, owner, filename, path, and formatted creation date
-        :rtype: tuple
-        """
-        return (
-            self.file_id,
-            self.owner,
-            self.filename,
-            self.path,
-            self.creation_date.strftime("%Y-%m-%d %H:%M:%S")
-        )
