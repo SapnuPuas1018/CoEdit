@@ -163,30 +163,33 @@ class Server:
         """
         print(f"received from client : {request}")
         if request.request_type == 'signup':
-            self.handle_signup(request, conn)
-            return
+            self.handle_signup(request.data, conn)
         elif request.request_type == 'login':
-            self.handle_login(request, conn)
+            self.handle_login(request.data, conn)
             return
         elif request.request_type == 'add-file':
-            self.handle_add_file(request, conn)
+            file, user = request.data
+            self.handle_add_file(file, user, conn)
         elif request.request_type == 'refresh-files':
-            user = request.data
-            self.get_user_files(user, conn)
+            self.get_user_files(request.data, conn)
         elif request.request_type == 'rename-file':
-            self.handle_file_rename(request, conn)
+            file, new_name= request.data
+            self.handle_file_rename(file, new_name, conn)
         elif request.request_type == 'delete-file':
             pass
         elif request.request_type == "open-file":
-            self.handle_open_file(request.data[0], request.data[1], conn)
+            user, file = request.data
+            self.handle_open_file(user, file, conn)
         elif request.request_type == 'get-access-list':
-            self.handle_get_access_list(request, conn)
+            self.handle_get_access_list(request.data, conn)
         elif request.request_type == 'check-user-exists':
-            self.handle_check_user_exists(request, conn)
+            self.handle_check_user_exists(request.data, conn)
         elif request.request_type == 'update-access-table':
-            self.handle_update_access_table(request, conn)
+            file, updated_access = request.data
+            self.handle_update_access_table(file, updated_access, conn)
         elif request.request_type == 'file-content-update':
-            self.handle_file_content_update(request, conn)
+            file, changes, user = request.data
+            self.handle_file_content_update(file, changes, user, conn)
         elif request.request_type == 'logout':
             self.handle_logout(request.data, conn)
 
@@ -221,11 +224,7 @@ class Server:
 
         protocol.send(conn, Request('logout_success', True))
 
-    def handle_file_content_update(self, request: Request, conn):
-        file: File = request.data[0]
-        changes: list[Operation] = request.data[1]
-        user: User = request.data[2]
-
+    def handle_file_content_update(self, file, changes, user, conn):
         current_content = self.database.get_file_content(user, file)
 
         updated_content = current_content
@@ -269,7 +268,7 @@ class Server:
 
         protocol.send(conn, Request('file-content', [file, content]))
 
-    def handle_update_access_table(self, request: Request, conn):
+    def handle_update_access_table(self, file: File, updated_access,  conn):
         """
                 Update the access table for a file based on the provided new access list.
 
@@ -280,9 +279,6 @@ class Server:
 
                 :return: None
         """
-        file = request.data[0]
-        updated_access = request.data[1]
-
         try:
             # Retrieve the current access table for the file
             for access in updated_access:
@@ -303,7 +299,7 @@ class Server:
             print(f"Failed to update access table: {e}")
             protocol.send(conn, Request('update-access-response', False))
 
-    def handle_check_user_exists(self, request: Request, conn):
+    def handle_check_user_exists(self, username: str, conn):
         """
         Check if a user exists by username and respond to the client with the result.
 
@@ -314,11 +310,10 @@ class Server:
 
         :return: None
         """
-        username = request.data
         user = self.database.check_if_user_exists_by_username(username)
         protocol.send(conn, Request('user-exists-response', user))
 
-    def handle_get_access_list(self, request: Request, conn):
+    def handle_get_access_list(self, file: File, conn):
         """
         Retrieve and send the list of users who have access to a specific file.
 
@@ -329,11 +324,10 @@ class Server:
 
         :return: None
         """
-        file: File = request.data
         file_accesses = self.database.get_users_with_access_to_file(file)
         protocol.send(conn, Request('file-access', file_accesses))
 
-    def handle_signup(self, request: Request, conn):
+    def handle_signup(self, user: User, conn):
         """
         Handle user sign-up by adding them to the database and notifying the client.
 
@@ -344,11 +338,10 @@ class Server:
 
         :return: None
         """
-        user: User = request.data
         already_exists = self.database.add_user(user)
         protocol.send(conn, Request('signup-success', already_exists))
 
-    def handle_login(self, request: Request, conn):
+    def handle_login(self, user: User, conn):
         """
         Authenticate a user and respond to the client with success or failure, and send accessible files if successful.
 
@@ -359,7 +352,6 @@ class Server:
 
         :return: None
         """
-        user: User = request.data
         success, user_id = self.database.verify_user(user)
         print('login was successful? : ' + str(success))
         user.user_id = user_id
@@ -384,7 +376,7 @@ class Server:
         print(files)
         protocol.send(conn, Request("file-list", files))
 
-    def handle_add_file(self, request, conn):
+    def handle_add_file(self, file: File, user: User, conn):
         """
         Handle the creation of a new file and set the appropriate access rights.
 
@@ -395,8 +387,6 @@ class Server:
 
         :return: None
         """
-        file = request.data[0]
-        user = request.data[1]
 
         success_add_file = self.database.add_file(user, file, '')
         success_add_access = False
@@ -410,7 +400,7 @@ class Server:
             self.database.remove_file(user.user_id, file.file_id)
             protocol.send(conn, Request('add-file-success', [False, ]))
 
-    def handle_file_rename(self, request: Request, conn):
+    def handle_file_rename(self, file: File, new_name: str, conn):
         """
         Rename a file in the database and notify the client of success or failure.
 
@@ -421,8 +411,7 @@ class Server:
 
         :return: None
         """
-        file = request.data[0]
-        new_name = request.data[1]
+
         success = self.database.rename_file(file, new_name)
         protocol.send(conn, Request('rename-file-success', success))
 
