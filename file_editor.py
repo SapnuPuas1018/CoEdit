@@ -234,7 +234,7 @@ class FileEditor(ctk.CTkToplevel):
             self.text_area.insert(index, op.text)
 
     def apply_changes(self, changes):
-        cursor_index = self.text_area.index("insert")
+        # cursor_index = self.text_area.index("insert")
         self.suppress_text_change = True
 
         try:
@@ -263,7 +263,6 @@ class FileEditor(ctk.CTkToplevel):
         finally:
             self.suppress_text_change = False
 
-
     def revert_change(self, op: Operation):
         line = op.line + 1
         char = op.char
@@ -281,6 +280,15 @@ class FileEditor(ctk.CTkToplevel):
 
         elif op.op_type == "delete":
             self.text_area.insert(index, op.text)
+
+    def show_no_write_access_message(self):
+        """
+        Display a message box notifying the user that they do not have write access.
+        """
+        self.no_access_box = ctk.CTkTextbox(self, height=30)
+        self.no_access_box.insert("1.0", "You do not have write access to this file.")
+        self.no_access_box.configure(state="disabled")
+        self.no_access_box.pack(pady=5, padx=5, fill="x")
 
     def insert_text_preserve_cursor(self, insert_index, content):
         """

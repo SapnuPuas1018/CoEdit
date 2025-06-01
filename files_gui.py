@@ -469,6 +469,8 @@ class FileManagerApp(ctk.CTk):
         if editor:
             editor.apply_changes(changes)
 
+
+
     def write_access_response(self, file: File, write_access):
         """
         Handles server response indicating write access status.

@@ -188,8 +188,8 @@ class Database:
         :return: The content of the file or None if inaccessible
         :rtype: str or None
         """
-        if not self.can_user_write(user, file):
-            print("User does not have write access")
+        if not self.check_write(user, file):
+            print(f"User {user.username} does not have write access")
             return False
 
         with self.lock:
@@ -294,32 +294,56 @@ class Database:
             result = self.cursor.fetchone()
             return result[0] if result else False
 
-    def can_user_write(self, user: User, file: File) -> bool:
+    # def can_user_write(self, user: User, file: File) -> bool:
+    #     """
+    #     Check if a user can write to a file (as owner or shared write access).
+    #
+    #     :param user: The User object
+    #     :type user: User
+    #     :param file: The File object
+    #     :type file: File
+    #
+    #     :return: True if the user can write to the file, False otherwise
+    #     :rtype: bool
+    #     """
+    #     with self.lock:
+    #         self.cursor.execute("""
+    #             SELECT 1 FROM files
+    #             WHERE id = ? AND owner_id = (SELECT id FROM users WHERE username = ?)
+    #         """, (file.file_id, user.username))
+    #         if self.cursor.fetchone():
+    #             return True
+    #         self.cursor.execute("""
+    #             SELECT can_write FROM file_access
+    #             JOIN users ON file_access.user_id = users.id
+    #             WHERE users.username = ? AND file_access.file_id = ?
+    #         """, (user.username, file.file_id))
+    #         result = self.cursor.fetchone()
+    #         return bool(result and result[0])
+
+    def check_write(self, user: User, file: File):
         """
-        Check if a user can write to a file (as owner or shared write access).
+        Check if the user has write access to the given file.
 
         :param user: The User object
         :type user: User
         :param file: The File object
         :type file: File
 
-        :return: True if the user can write to the file, False otherwise
+        :return: True if the user has write access, False otherwise
         :rtype: bool
         """
         with self.lock:
+            # Check if the user has write access
             self.cursor.execute("""
-                SELECT 1 FROM files 
-                WHERE id = ? AND owner_id = (SELECT id FROM users WHERE username = ?)
-            """, (file.file_id, user.username))
-            if self.cursor.fetchone():
-                return True
-            self.cursor.execute("""
-                SELECT can_write FROM file_access 
-                JOIN users ON file_access.user_id = users.id 
-                WHERE users.username = ? AND file_access.file_id = ?
-            """, (user.username, file.file_id))
-            result = self.cursor.fetchone()
-            return bool(result and result[0])
+                SELECT can_write FROM file_access
+                JOIN users ON file_access.user_id = users.id
+                WHERE users.id = ? AND file_access.file_id = ?
+            """, (user.user_id, file.file_id))
+            access_result = self.cursor.fetchone()
+            if not access_result or not access_result[0]:
+                return False  # User has no write access
+            return True
 
     def get_readable_files_per_user(self, user: User) -> list[File]:
         """

@@ -247,16 +247,18 @@ class Server:
 
         print('updated_content: ' + updated_content)
 
-        self.database.update_file_content(user, file, updated_content)
+        can_write = self.database.update_file_content(user, file, updated_content)
+        if can_write:
+            with self.pending_changes_lock:
+                if file.file_id not in self.pending_changes:
+                    self.pending_changes[file.file_id] = {}
 
-        with self.pending_changes_lock:
-            if file.file_id not in self.pending_changes:
-                self.pending_changes[file.file_id] = {}
+                if conn not in self.pending_changes[file.file_id]:
+                    self.pending_changes[file.file_id][conn] = []
 
-            if conn not in self.pending_changes[file.file_id]:
-                self.pending_changes[file.file_id][conn] = []
-
-            self.pending_changes[file.file_id][conn].append((file, changes))
+                self.pending_changes[file.file_id][conn].append((file, changes))
+        else:
+            protocol.send(conn, Request('write-access-response', [file, can_write]))
 
     def handle_open_file(self, user: User, file: File, conn):
         """

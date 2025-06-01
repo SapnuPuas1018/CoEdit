@@ -35,7 +35,6 @@ class LoginGui:
         Authenticates the user by retrieving credentials from entry fields and sending a login request.
 
         :return: None
-        :rtype: None
         """
         username = self.username_entry.get()
         password = self.password_entry.get()
@@ -54,7 +53,6 @@ class LoginGui:
         Displays the login frame in the GUI.
 
         :return: None
-        :rtype: None
         """
         self.login_frame.pack()
 
@@ -64,6 +62,5 @@ class LoginGui:
         Hides the login frame from the GUI.
 
         :return: None
-        :rtype: None
         """
         self.login_frame.pack_forget()
