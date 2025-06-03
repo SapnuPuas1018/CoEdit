@@ -289,35 +289,3 @@ class FileEditor(ctk.CTkToplevel):
         self.no_access_box.insert("1.0", "You do not have write access to this file.")
         self.no_access_box.configure(state="disabled")
         self.no_access_box.pack(pady=5, padx=5, fill="x")
-
-    def insert_text_preserve_cursor(self, insert_index, content):
-        """
-        Insert text at a specified index without altering the cursor position unnecessarily.
-
-        :param insert_index: Index in the text widget where the content should be inserted
-        :type insert_index: str
-        :param content: The text content to insert
-        :type content: str
-        """
-        cursor_index = self.text_area.index("insert")
-
-        def index_to_tuple(index_str):
-            line, char = map(int, index_str.split('.'))
-            return line, char
-
-        cursor_line, cursor_char = index_to_tuple(cursor_index)
-        insert_line, insert_char = index_to_tuple(insert_index)
-
-        # Insert the text
-        self.text_area.insert(insert_index, content)
-
-        # Decide if cursor needs to be adjusted
-        if (insert_line, insert_char) < (cursor_line, cursor_char):
-            # If insert is before the cursor, move the cursor forward by the inserted text length
-            new_char_index = cursor_char + len(content)
-            new_cursor_index = f"{cursor_line}.{new_char_index}"
-            self.text_area.mark_set("insert", new_cursor_index)
-        else:
-            # Insert at or after cursor, keep cursor where it was
-            self.text_area.mark_set("insert", cursor_index)
-

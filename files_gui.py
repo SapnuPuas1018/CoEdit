@@ -236,13 +236,19 @@ class FileManagerApp(ctk.CTk):
         :type file: File
 
         :return: None
-        :rtype: None
         """
         confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{file.filename}'?")
         if confirm:
             self.client.send_request(Request("delete-file", [file, self.my_user]))
             self.file_list.remove(file)
             self.search_files()
+
+    def delete_file_success(self, success: bool):
+        if success:
+            messagebox.showinfo("delete", 'delete was successful')
+        else:
+            messagebox.showerror("delete", 'delete was unsuccessful')
+        self.search_files()
 
     def delete_file_for_me(self, file):
         """
@@ -252,7 +258,6 @@ class FileManagerApp(ctk.CTk):
         :type file: File
 
         :return: None
-        :rtype: None
         """
         confirm = messagebox.askyesno("Confirm", f"Remove access to '{file.filename}' just for you?")
         if confirm:
@@ -271,7 +276,6 @@ class FileManagerApp(ctk.CTk):
         :type write_var: ctk.BooleanVar
 
         :return: None
-        :rtype: None
         """
         if not read_var.get():
             write_var.set(False)

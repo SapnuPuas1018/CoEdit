@@ -176,7 +176,8 @@ class Server:
             file, new_name= request.data
             self.handle_file_rename(file, new_name, conn)
         elif request.request_type == 'delete-file':
-            pass
+            file, user = request.data
+            self.handle_delete_file(file, user, conn)
         elif request.request_type == "open-file":
             user, file = request.data
             self.handle_open_file(user, file, conn)
@@ -411,7 +412,7 @@ class Server:
         if success_add_file and success_add_access:
             protocol.send(conn, Request('add-file-success', [True, file]))
         else:
-            self.database.delete_file(user.user_id, file.file_id)
+            self.database.delete_file(file, user)
             protocol.send(conn, Request('add-file-success', [False, ]))
 
     def handle_file_rename(self, file: File, new_name: str, conn):
@@ -430,6 +431,35 @@ class Server:
         success = self.database.rename_file(file, new_name)
         protocol.send(conn, Request('rename-file-success', success))
 
+    def handle_delete_file(self, file: File, user: User, conn):
+        """
+        Handle the deletion of a file by removing it from the database and cleaning up associated state.
+
+        :param file: The file to delete
+        :type file: File
+        :param user: The user requesting the deletion
+        :type user: User
+        :param conn: The client connection
+        :type conn: ssl.SSLSocket
+
+        :return: None
+        """
+        try:
+            success = self.database.delete_file(file, user)
+
+            if success:
+                if file.file_id in self.open_files:
+                    del self.open_files[file.file_id]
+
+                with self.pending_changes_lock:
+                    if file.file_id in self.pending_changes:
+                        del self.pending_changes[file.file_id]
+
+            protocol.send(conn, Request('delete-file-response', success))
+
+        except Exception as e:
+            print(f"Error deleting file {file.file_id}: {e}")
+            protocol.send(conn, Request('delete-file-response', [file, False]))
 
 if __name__ == "__main__":
     server = Server()

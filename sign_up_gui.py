@@ -44,39 +44,50 @@ class SignUpGui:
                                          text_color="white", command=gui_manager.show_login_page)
         self.back_button.pack(pady=5)
 
-
     def register_new_user(self):
         """
         Registers a new user by validating form fields and sending a signup request to the server.
 
         :return: None
         """
-        first_name = self.first_name_entry.get()
-        last_name = self.last_name_entry.get()
+        first_name = self.first_name_entry.get().strip()
+        last_name = self.last_name_entry.get().strip()
         username = self.new_username_entry.get()
         password = self.new_password_entry.get()
         confirm_password = self.confirm_password_entry.get()
 
-        if not all([first_name, last_name, username, password, confirm_password]):
-            messagebox.showerror("Error", "All fields must be filled out")
-            return
-
-        if password != confirm_password:
-            messagebox.showerror("Error", "Passwords do not match")
-            return
-
-        if len(password) < 8:
-            messagebox.showerror("Error", "Password must be at least 8 characters long")
-            return
-        if not re.search(r"[A-Z]", password):
-            messagebox.showerror("Error", "Password must contain at least one uppercase letter")
-            return
-        if not re.search(r"[a-z]", password):
-            messagebox.showerror("Error", "Password must contain at least one lowercase letter")
-            return
-        if not re.search(r"\d", password):
-            messagebox.showerror("Error", "Password must contain at least one digit")
-            return
+        # if not all([first_name, last_name, username, password, confirm_password]):
+        #     messagebox.showerror("Error", "All fields must be filled out")
+        #     return
+        #
+        # # Validate first and last name
+        # name_pattern = r"^[A-Za-z]+$"
+        # if not re.match(name_pattern, first_name) or not re.match(name_pattern, last_name):
+        #     messagebox.showerror("Error",
+        #                          "First and last names must contain only letters with no spaces or special characters")
+        #     return
+        #
+        # if len(first_name + last_name) > 25:
+        #     messagebox.showerror("Error", "Combined length of first and last name must not exceed 25 characters")
+        #     return
+        #
+        # # Validate passwords
+        # if password != confirm_password:
+        #     messagebox.showerror("Error", "Passwords do not match")
+        #     return
+        #
+        # if len(password) < 8:
+        #     messagebox.showerror("Error", "Password must be at least 8 characters long")
+        #     return
+        # if not re.search(r"[A-Z]", password):
+        #     messagebox.showerror("Error", "Password must contain at least one uppercase letter")
+        #     return
+        # if not re.search(r"[a-z]", password):
+        #     messagebox.showerror("Error", "Password must contain at least one lowercase letter")
+        #     return
+        # if not re.search(r"\d", password):
+        #     messagebox.showerror("Error", "Password must contain at least one digit")
+        #     return
 
         hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
         signup_result = User('', first_name, last_name, username, hashed_password)

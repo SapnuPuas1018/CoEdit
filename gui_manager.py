@@ -96,6 +96,8 @@ class GuiManager(ctk.CTk):
         elif response.request_type == 'write-access-response':
             file, write_access = response.data
             self.files_gui.write_access_response(file, write_access)
+        elif response.request_type == 'delete-file-response':
+            self.files_gui.delete_file_success(response.data)
         elif response.request_type == 'logout_success':
             success = response.data
             if success:

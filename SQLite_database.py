@@ -209,20 +209,21 @@ class Database:
                     return False
         return False
 
-    def delete_file(self, user_id, file_id):
+    def delete_file(self, file: File, user: User):
         """
         Deletes a file from both the database and disk.
 
-        :param user_id: ID of the file owner
-        :type user_id: int
-        :param file_id: ID of the file to be removed
-        :type file_id: str
+        :param file: The file to be removed
+        :type file: File
+
+        :param user: The user who deleted the file
+        :type user: User
 
         :return: Tuple of success status and a message
         :rtype: tuple[bool, str]
         """
         with self.lock:
-            self.cursor.execute("SELECT path FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
+            self.cursor.execute("SELECT path FROM files WHERE id=? AND owner_id=?", (file.file_id, user.user_id))
             result = self.cursor.fetchone()
 
             if result:
@@ -233,7 +234,7 @@ class Database:
                     except Exception as e:
                         print(f"Warning: Failed to delete file from disk: {e}")
 
-                self.cursor.execute("DELETE FROM files WHERE id=? AND owner_id=?", (file_id, user_id))
+                self.cursor.execute("DELETE FROM files WHERE id=? AND owner_id=?", (file.file_id, user.user_id))
                 self.conn.commit()
                 return True
         return False
@@ -529,6 +530,28 @@ class Database:
             except Exception as e:
                 print(f"Error renaming file: {e}")
                 return False
+
+    # def delete_file(self, file: File, user: User) -> bool:
+    #     """
+    #     Delete a file from the database if the user is the owner.
+    #
+    #     :param file: File object
+    #     :param user: Requesting user
+    #     :return: True if the file was deleted, False otherwise
+    #     """
+    #     try:
+    #         cursor = self.conn.cursor()
+    #         # Check if the user is the owner
+    #         cursor.execute("SELECT owner_id FROM files WHERE file_id = ?", (file.file_id,))
+    #         result = cursor.fetchone()
+    #         if result and result[0] == user.user_id:
+    #             cursor.execute("DELETE FROM files WHERE file_id = ?", (file.file_id,))
+    #             self.conn.commit()
+    #             return True
+    #         return False
+    #     except Exception as e:
+    #         print(f"Database delete_file error: {e}")
+    #         return False
 
     def get_user_full_name(self, username):
         """
