@@ -42,6 +42,7 @@ class Client:
             threading.Thread(target=self.listen, daemon=True).start()
         except Exception as e:
             print('failed to connect: ' + str(e))
+            quit()
 
     def listen(self):
         """

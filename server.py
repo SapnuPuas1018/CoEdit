@@ -9,6 +9,9 @@ from operation import Operation
 from request import Request
 from user import User
 
+import logging
+
+
 IP_ADDR = '0.0.0.0'
 PORT = 8468
 QUEUE_LEN = 1
@@ -31,11 +34,9 @@ class Server:
         self.thread_list = []
         self.database = Database()
 
-        # Add pending changes queue and lock for thread safety
-        self.pending_changes = {}  # {file_id: {conn: [changes]}}
+        self.pending_changes = {}
         self.pending_changes_lock = Lock()
 
-        # Start the timer for sending batched updates
         self.update_timer = None
         self.start_update_timer()
 
