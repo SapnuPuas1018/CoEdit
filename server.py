@@ -10,7 +10,7 @@ from request import Request
 from user import User
 
 import logging
-
+logging.basicConfig(filename='server_loggs.log', level=logging.DEBUG)
 
 IP_ADDR = '0.0.0.0'
 PORT = 8468
@@ -71,26 +71,24 @@ class Server:
                         for _, change_list in changes:
                             all_changes.extend(change_list)
 
-                        print(f"Broadcasting changes for file {file_id} from sender {sender_conn}")
-
+                        logging.debug(f"Broadcasting changes for file {file_id} from sender {sender_conn}")
                         for user, conn in self.open_files.get(file_id, []):
                             if conn == sender_conn:
                                 continue
 
-                            print(f"Checking read access for {user.username} on file {file_id}")
+                            logging.debug(f"Checking read access for {user.username} on file {file_id}")
                             if self.database.can_user_read(user, file):
-                                print(f"User {user.username} has read access, sending update.")
+                                logging.debug(f"User {user.username} has read access, sending update.")
                                 try:
                                     protocol.send(conn, Request('file-content-update', [file, all_changes]))
                                 except Exception as e:
-                                    print(f"Error sending batched update to {user.username}: {e}")
+                                    logging.error(f"Error sending batched update to {user.username}: {e}")
                             else:
-                                print(f"User {user.username} does NOT have read access.")
-
+                                logging.debug(f"User {user.username} does NOT have read access.")
                 self.pending_changes.clear()
 
         except Exception as e:
-            print(f"Error in send_batched_updates: {e}")
+            logging.error(f"Error in send_batched_updates: {e}")
 
         finally:
             self.start_update_timer()
@@ -103,7 +101,7 @@ class Server:
         """
         while True:
             conn, addr = self.s_sock.accept()
-            print(f'received a connection from {conn}, {addr}')
+            logging.debug(f'received a connection from {conn}, {addr}')
             thread = Thread(target=self.listen, args=(conn,))
             thread.start()
             self.thread_list.append(thread)
@@ -120,10 +118,10 @@ class Server:
         try:
             while True:
                 msg = protocol.recv(conn)
-                print(f'received a msg from {conn}, msg {msg}')
+                logging.debug(f'received a msg from {conn}, msg {msg}')
                 self.handle_request(msg, conn)
         except socket.error as sock_err:
-            print(sock_err)
+            logging.error(sock_err)
         finally:
             conn.close()
             self.cleanup_connection(conn)
@@ -162,7 +160,7 @@ class Server:
 
         :return: None
         """
-        print(f"received from client : {request}")
+        logging.debug(f"received from client : {request}")
         if request.request_type == 'signup':
             self.handle_signup(request.data, conn)
         elif request.request_type == 'login':
@@ -206,7 +204,7 @@ class Server:
 
         :return: None
         """
-        print(f"User {user.username} is logging out...")
+        logging.debug(f"User {user.username} is logging out...")
 
         # Clean up open_files
         for file_id in list(self.open_files):
@@ -222,7 +220,7 @@ class Server:
                 if not self.pending_changes[file_id]:
                     del self.pending_changes[file_id]
 
-        print(f"User {user.username} logged out and cleaned up.")
+        logging.debug(f"User {user.username} logged out and cleaned up.")
 
         protocol.send(conn, Request('logout_success', True))
 
@@ -246,8 +244,6 @@ class Server:
         updated_content = current_content
         for op in changes:
             updated_content = op.apply(updated_content)
-
-        print('updated_content: ' + updated_content)
 
         can_write = self.database.update_file_content(user, file, updated_content)
         if can_write:
@@ -277,10 +273,8 @@ class Server:
         """
         content = self.database.get_file_content(user, file)
 
-        # Track users and their connection
         if file.file_id not in self.open_files:
             self.open_files[file.file_id] = []
-        # Avoid duplicates
         if not any(u.username == user.username for u, _ in self.open_files[file.file_id]):
             self.open_files[file.file_id].append((user, conn))
 
@@ -306,12 +300,11 @@ class Server:
                 can_write = access["write"]
 
                 user = self.database.check_if_user_exists_by_username(username)
-                print(user)
                 if user:
                     x = self.database.change_file_access(user, file, can_read, can_write)
             protocol.send(conn, Request('update-access-response', True))
         except Exception as e:
-            print(f"Failed to update access table: {e}")
+            logging.error(f"Failed to update access table: {e}")
             protocol.send(conn, Request('update-access-response', False))
 
     def handle_check_user_exists(self, username: str, conn):
@@ -368,7 +361,7 @@ class Server:
         :return: None
         """
         success, user_id = self.database.verify_user(user)
-        print('login was successful? : ' + str(success))
+        logging.debug('login was successful? : ' + str(success))
         user.user_id = user_id
         if success:
             user.first_name, user.last_name = self.database.get_user_full_name(user.username)
@@ -388,7 +381,6 @@ class Server:
         :return: None
         """
         files: list[File] = self.database.get_readable_files_per_user(user)
-        print(files)
         protocol.send(conn, Request("file-list", files))
 
     def handle_add_file(self, file: File, user: User, conn):
@@ -459,7 +451,7 @@ class Server:
             protocol.send(conn, Request('delete-file-response', success))
 
         except Exception as e:
-            print(f"Error deleting file {file.file_id}: {e}")
+            logging.error(f"Error deleting file {file.file_id}: {e}")
             protocol.send(conn, Request('delete-file-response', [file, False]))
 
 if __name__ == "__main__":

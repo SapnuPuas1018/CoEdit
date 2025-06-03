@@ -6,8 +6,12 @@ from request import Request
 from sign_up_gui import SignUpGui
 from client import Client
 
+import logging
+logging.basicConfig(filename='client_loggs.log', level=logging.DEBUG)
+
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
+
 
 class GuiManager(ctk.CTk):
     """
@@ -64,8 +68,9 @@ class GuiManager(ctk.CTk):
         :param response: The response object received from the server.
         :type response: Request
         """
-        print(response.request_type)
-        print(response.data)
+
+        logging.debug(response.request_type)
+        logging.debug(response.data)
         if response.request_type == 'signup-success' and response.data:
             self.show_login_page()
         elif response.request_type == 'login-success' and response.data[0]:
@@ -80,7 +85,6 @@ class GuiManager(ctk.CTk):
         elif response.request_type == 'rename-file-success':
             self.files_gui.rename_file_success(response.data)
         elif response.request_type == 'file-access':
-            print('response file access type' + str(type(response.data)))
             self.files_gui.manage_access(response.data)
         elif response.request_type == 'user-exists-response':
             self.files_gui.add_user(response.data)
@@ -138,7 +142,7 @@ class GuiManager(ctk.CTk):
                 self.client.send_request(Request("logout", self.my_user))
             self.client.disconnect()
         except Exception as e:
-            print(f"Error while disconnecting: {e}")
+            logging.error(f"Error while disconnecting: {e}")
         finally:
             self.destroy()
             quit()

@@ -1,3 +1,4 @@
+import logging
 import queue
 import socket
 import ssl
@@ -41,7 +42,7 @@ class Client:
             self.conn.connect((HOST_NAME, PORT))
             threading.Thread(target=self.listen, daemon=True).start()
         except Exception as e:
-            print('failed to connect: ' + str(e))
+            logging.error('failed to connect: ' + str(e))
             quit()
 
     def listen(self):
@@ -55,9 +56,9 @@ class Client:
             try:
                 response = protocol.recv(self.conn)
                 self.response_queue.put(response)
-                print(f'received a msg from {self.conn}')
+                logging.debug(f'received a msg from {self.conn}')
             except Exception as e:
-                print(f"Error in listen: {e}")
+                logging.error(f"Error in listen: {e}")
                 break
 
     def send_request(self, request: Request):
@@ -71,7 +72,7 @@ class Client:
         try:
             protocol.send(self.conn, request)
         except socket.error as sock_err:
-            print(sock_err)
+            logging.error(sock_err)
 
     def get_response_nowait(self):
         """
@@ -94,9 +95,9 @@ class Client:
         try:
             if self.conn:
                 self.stop()
-                print("Disconnected from server.")
+                logging.debug("Disconnected from server.")
         except Exception as e:
-            print(f"Error during disconnect: {e}")
+            logging.error(f"Error during disconnect: {e}")
 
 
 if __name__ == "__main__":
