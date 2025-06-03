@@ -60,7 +60,6 @@ class SignUpGui:
             messagebox.showerror("Error", "All fields must be filled out")
             return
 
-        # Validate first and last name
         name_pattern = r"^[A-Za-z]+$"
         if not re.match(name_pattern, first_name) or not re.match(name_pattern, last_name):
             messagebox.showerror("Error",

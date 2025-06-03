@@ -301,7 +301,7 @@ class Server:
 
                 user = self.database.check_if_user_exists_by_username(username)
                 if user:
-                    x = self.database.change_file_access(user, file, can_read, can_write)
+                    self.database.change_file_access(user, file, can_read, can_write)
             protocol.send(conn, Request('update-access-response', True))
         except Exception as e:
             logging.error(f"Failed to update access table: {e}")

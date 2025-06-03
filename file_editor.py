@@ -59,15 +59,13 @@ class FileEditor(ctk.CTkToplevel):
         self.redo_stack = []  # type: list[Operation]
 
         self.current_content = content
-        self.text_area.insert("1.0", self.current_content)  # Initialize with content
+        self.text_area.insert("1.0", self.current_content)
 
         # Menu
         self.menu = tk.Menu(self)
         self.config(menu=self.menu)
 
         file_menu = tk.Menu(self.menu, tearoff=0)
-        # file_menu.add_command(label="Open", command=self.open_file)
-        # file_menu.add_command(label="Save", command=self.save_file)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.quit)
         self.menu.add_cascade(label="File", menu=file_menu)
@@ -143,6 +141,14 @@ class FileEditor(ctk.CTkToplevel):
         self.show_match(self.current_match_index)
 
     def undo(self, event=None):
+        """
+        Undo the last operation and update the content and change history.
+
+        :param event: Optional event parameter for key binding
+        :type event: Event or None
+
+        :return: None
+        """
         if not self.undo_stack:
             return
 
@@ -157,6 +163,14 @@ class FileEditor(ctk.CTkToplevel):
             self.suppress_text_change = False
 
     def redo(self, event=None):
+        """
+        Redo the last undone operation and update the content and change history.
+
+        :param event: Optional event parameter for key binding
+        :type event: Event or None
+
+        :return: None
+        """
         if not self.redo_stack:
             return
 
@@ -172,6 +186,15 @@ class FileEditor(ctk.CTkToplevel):
             self.suppress_text_change = False
 
     def on_text_change(self, event):
+        """
+        Handle text changes in the text area, compute diffs, update history,
+        and send update to the server.
+
+        :param event: Event triggered when text is modified
+        :type event: Event
+
+        :return: None
+        """
         if self.suppress_text_change:
             return
 
@@ -192,6 +215,17 @@ class FileEditor(ctk.CTkToplevel):
         self.client.send_request(Request('file-content-update', [self.current_file, diff_ops, self.my_user]))
 
     def get_diff_changes(self, old: str, new: str) -> list[Operation]:
+        """
+            Compute a list of Operation objects representing the difference between old and new content.
+
+            :param old: The old version of the text
+            :type old: str
+            :param new: The new version of the text
+            :type new: str
+
+            :return: A list of operations representing the changes
+            :rtype: list[Operation]
+            """
         changes = []
 
         sm = difflib.SequenceMatcher(None, old, new)
@@ -216,6 +250,14 @@ class FileEditor(ctk.CTkToplevel):
         return changes
 
     def apply_single_change(self, op: Operation):
+        """
+        Apply a single Operation (insert or delete) to the text area.
+
+        :param op: The operation to apply
+        :type op: Operation
+
+        :return: None
+        """
         line = op.line + 1
         char = op.char
         index = f"{line}.{char}"
@@ -234,26 +276,29 @@ class FileEditor(ctk.CTkToplevel):
             self.text_area.insert(index, op.text)
 
     def apply_changes(self, changes):
-        # cursor_index = self.text_area.index("insert")
+        """
+        Apply a list of changes with operational transformation,
+        maintaining the order and consistency of the document.
+
+        :param changes: A list of Operation objects to apply
+        :type changes: list[Operation]
+
+        :return: None
+        """
         self.suppress_text_change = True
 
         try:
             for change in changes:
-                # Get all future changes that happened after the incoming operation
                 future_changes = [c for c in self.changes_history if c.timestamp > change.timestamp]
 
-                # Revert them in reverse order
                 for fc in reversed(future_changes):
                     self.revert_change(fc)
 
-                # Apply the new incoming operation
                 self.apply_single_change(change)
 
-                # Append and sort history
                 self.changes_history.append(change)
                 self.changes_history.sort()
 
-                # Reapply the reverted future changes
                 for fc in future_changes:
                     self.apply_single_change(fc)
 
@@ -264,6 +309,14 @@ class FileEditor(ctk.CTkToplevel):
             self.suppress_text_change = False
 
     def revert_change(self, op: Operation):
+        """
+        Revert a given Operation to undo its effect in the text area.
+
+        :param op: The operation to revert
+        :type op: Operation
+
+        :return: None
+        """
         line = op.line + 1
         char = op.char
         index = f"{line}.{char}"

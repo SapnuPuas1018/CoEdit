@@ -87,11 +87,21 @@ class Client:
             return None
 
     def stop(self):
+        """
+        Stops the connection and sets the running flag to False.
 
+        :return: None
+        """
         self.running = False
         self.conn.close()
 
     def disconnect(self):
+        """
+        Safely disconnects from the server by stopping the connection if it exists.
+        Logs any exceptions encountered during the disconnection.
+
+        :return: None
+        """
         try:
             if self.conn:
                 self.stop()

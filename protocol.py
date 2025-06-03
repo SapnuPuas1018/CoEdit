@@ -1,9 +1,7 @@
 
 import socket
-import ssl
 import pickle
 
-from user import User
 
 def send(sock, data):
     """
@@ -16,7 +14,6 @@ def send(sock, data):
     :type data: Any
 
     :return: None
-    :rtype: None
     """
 
     serialized_data = pickle.dumps(data)

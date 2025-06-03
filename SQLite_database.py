@@ -295,33 +295,6 @@ class Database:
             result = self.cursor.fetchone()
             return result[0] if result else False
 
-    # def can_user_write(self, user: User, file: File) -> bool:
-    #     """
-    #     Check if a user can write to a file (as owner or shared write access).
-    #
-    #     :param user: The User object
-    #     :type user: User
-    #     :param file: The File object
-    #     :type file: File
-    #
-    #     :return: True if the user can write to the file, False otherwise
-    #     :rtype: bool
-    #     """
-    #     with self.lock:
-    #         self.cursor.execute("""
-    #             SELECT 1 FROM files
-    #             WHERE id = ? AND owner_id = (SELECT id FROM users WHERE username = ?)
-    #         """, (file.file_id, user.username))
-    #         if self.cursor.fetchone():
-    #             return True
-    #         self.cursor.execute("""
-    #             SELECT can_write FROM file_access
-    #             JOIN users ON file_access.user_id = users.id
-    #             WHERE users.username = ? AND file_access.file_id = ?
-    #         """, (user.username, file.file_id))
-    #         result = self.cursor.fetchone()
-    #         return bool(result and result[0])
-
     def check_write(self, user: User, file: File):
         """
         Check if the user has write access to the given file.
@@ -440,14 +413,12 @@ class Database:
             return False
 
         with self.lock:
-            # First, check if an entry already exists
             self.cursor.execute("""
                 SELECT id FROM file_access WHERE user_id = ? AND file_id = ?
             """, (user_id, file_id))
             result = self.cursor.fetchone()
 
             if result:
-                # Entry exists -> Update
                 self.cursor.execute("""
                     UPDATE file_access
                     SET can_read = ?, can_write = ?
@@ -530,28 +501,6 @@ class Database:
             except Exception as e:
                 print(f"Error renaming file: {e}")
                 return False
-
-    # def delete_file(self, file: File, user: User) -> bool:
-    #     """
-    #     Delete a file from the database if the user is the owner.
-    #
-    #     :param file: File object
-    #     :param user: Requesting user
-    #     :return: True if the file was deleted, False otherwise
-    #     """
-    #     try:
-    #         cursor = self.conn.cursor()
-    #         # Check if the user is the owner
-    #         cursor.execute("SELECT owner_id FROM files WHERE file_id = ?", (file.file_id,))
-    #         result = cursor.fetchone()
-    #         if result and result[0] == user.user_id:
-    #             cursor.execute("DELETE FROM files WHERE file_id = ?", (file.file_id,))
-    #             self.conn.commit()
-    #             return True
-    #         return False
-    #     except Exception as e:
-    #         print(f"Database delete_file error: {e}")
-    #         return False
 
     def get_user_full_name(self, username):
         """

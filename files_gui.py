@@ -46,7 +46,6 @@ class FileManagerApp(ctk.CTk):
         Loads files from the server and displays them.
 
         :return: None
-        :rtype: None
         """
         file_objects = self.client.get_response_nowait()
         print(type(file_objects))
@@ -66,7 +65,6 @@ class FileManagerApp(ctk.CTk):
         :type files: list[File]
 
         :return: None
-        :rtype: None
         """
         if files is not None:
             self.file_list = files
@@ -79,7 +77,6 @@ class FileManagerApp(ctk.CTk):
         Displays the filtered files in the UI.
 
         :return: None
-        :rtype: None
         """
         for widget in self.file_frame.winfo_children():
             widget.destroy()
@@ -100,7 +97,6 @@ class FileManagerApp(ctk.CTk):
         Creates and packs all the widgets for the file manager UI.
 
         :return: None
-        :rtype: None
         """
         # Top bar
         top_bar = ctk.CTkFrame(self.files_frame)
@@ -152,7 +148,6 @@ class FileManagerApp(ctk.CTk):
         Filters the file list based on the search query.
 
         :return: None
-        :rtype: None
         """
         query = self.search_entry.get().lower()
         self.filtered_files = [file for file in self.file_list if query in file.filename.lower()]
@@ -166,7 +161,6 @@ class FileManagerApp(ctk.CTk):
         :type criterion: str
 
         :return: None
-        :rtype: None
         """
         if criterion == "Name":
             self.filtered_files.sort(key=lambda x: x.filename.lower())
@@ -186,7 +180,6 @@ class FileManagerApp(ctk.CTk):
         :type file: File
 
         :return: None
-        :rtype: None
         """
         menu = tkinter.Menu(self, tearoff=0)
         menu.add_command(label="✏️ Rename File", command=lambda: self.rename_file(file))
@@ -206,7 +199,6 @@ class FileManagerApp(ctk.CTk):
         :type file: File
 
         :return: None
-        :rtype: None
         """
         new_name = simpledialog.askstring("Rename File", "Enter new name:", initialvalue=file.filename)
         if new_name:
@@ -220,7 +212,6 @@ class FileManagerApp(ctk.CTk):
         :type success_rename: bool
 
         :return: None
-        :rtype: None
         """
         if success_rename:
             messagebox.showinfo("rename", 'rename was successful')
@@ -296,7 +287,6 @@ class FileManagerApp(ctk.CTk):
         :type write_default: bool
 
         :return: None
-        :rtype: None
         """
         user_row = len(self.access_vars) + 1
 
@@ -321,7 +311,6 @@ class FileManagerApp(ctk.CTk):
         Updates the layout of the access control window.
 
         :return: None
-        :rtype: None
         """
         new_row = len(self.access_vars) + 1
         self.new_user_entry.grid(row=new_row, column=0, padx=10, pady=10)
@@ -336,7 +325,6 @@ class FileManagerApp(ctk.CTk):
         :type user: User
 
         :return: None
-        :rtype: None
         """
         if user is None:
             messagebox.showerror("User Not Found", "No such user exists in the database.")
@@ -355,7 +343,6 @@ class FileManagerApp(ctk.CTk):
         Sends updated access permissions to the server.
 
         :return: None
-        :rtype: None
         """
         updated_access = []
         for username, (read_var, write_var) in self.access_vars.items():
@@ -376,7 +363,6 @@ class FileManagerApp(ctk.CTk):
         :type success: bool
 
         :return: None
-        :rtype: None
         """
         if success:
             messagebox.showinfo("Access Updated", "Permissions successfully updated.")
@@ -392,7 +378,6 @@ class FileManagerApp(ctk.CTk):
         :type user_access_list: list[UserAccess]
 
         :return: None
-        :rtype: None
         """
         if not user_access_list:
             messagebox.showerror("Error", "Failed to load access list.")
@@ -445,7 +430,6 @@ class FileManagerApp(ctk.CTk):
         :type content: str
 
         :return: None
-        :rtype: None
         """
         if content is not None:
             editor_window = FileEditor(self.client, file, self.my_user, content)
@@ -465,7 +449,6 @@ class FileManagerApp(ctk.CTk):
         :type changes: list[dict]
 
         :return: None
-        :rtype: None
         """
         editor = self.open_editors.get(file.file_id)
         if editor:
@@ -484,7 +467,6 @@ class FileManagerApp(ctk.CTk):
         :type write_access: bool
 
         :return: None
-        :rtype: None
         """
         editor = self.open_editors.get(file.file_id)
         if editor and write_access:
@@ -497,7 +479,6 @@ class FileManagerApp(ctk.CTk):
         Prompts user for a file name and sends a request to create it.
 
         :return: None
-        :rtype: None
         """
         new_name = simpledialog.askstring("New File", "Enter file name:")
         if new_name:
@@ -505,9 +486,9 @@ class FileManagerApp(ctk.CTk):
 
             new_file = File(
                 filename=new_name,
-                owner=self.my_user,  # Assuming my_user holds the logged-in user
-                path=file_path,  # Path to be created and stored on the server
-                creation_date=datetime.now().strftime("%Y-%m-%d %H:%M")  # Current date and time
+                owner=self.my_user,
+                path=file_path,
+                creation_date=datetime.now().strftime("%Y-%m-%d %H:%M")
             )
 
             # Send the file creation request to the server
@@ -524,7 +505,6 @@ class FileManagerApp(ctk.CTk):
         :type new_file: File
 
         :return: None
-        :rtype: None
         """
         if success:
             self.file_list.append(new_file)
@@ -549,15 +529,13 @@ class FileManagerApp(ctk.CTk):
         self.filtered_files = []
         self.open_editors = {}
 
-        # Clear file display
+        # clear file display
         for widget in self.file_frame.winfo_children():
             widget.destroy()
 
-        # Clear top-level widgets if needed (optional)
         for widget in self.files_frame.winfo_children():
             widget.destroy()
 
-        # Hide or forget the main file UI frame (optional)
         self.files_frame.pack_forget()
 
     def show(self):
@@ -565,7 +543,6 @@ class FileManagerApp(ctk.CTk):
         Displays the file manager frame.
 
         :return: None
-        :rtype: None
         """
         self.files_frame.pack(fill="both", expand=True)
 
@@ -574,7 +551,6 @@ class FileManagerApp(ctk.CTk):
         Hides the file manager frame.
 
         :return: None
-        :rtype: None
         """
         self.files_frame.pack_forget()
 

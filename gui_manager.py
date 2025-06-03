@@ -138,7 +138,6 @@ class GuiManager(ctk.CTk):
         """
         try:
             if self.my_user:
-                # Send logout request
                 self.client.send_request(Request("logout", self.my_user))
             self.client.disconnect()
         except Exception as e:
